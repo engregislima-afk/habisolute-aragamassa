@@ -78,7 +78,7 @@ if st.session_state.theme == "Escuro":
 else:
     ACCENT = "#2563EB"; SURFACE = "#f5f7fb"; CARD_BG = "#ffffff"; BORDER = "rgba(0,0,0,0.12)"; TEXT="#0f172a"
 
-st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🧱", layout="centered")
+st.set_page_config(page_title="Rupturas de Argamassa", page_icon="☑️", layout="centered")
 st.markdown(f"""
 <style>
 :root {{
