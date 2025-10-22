@@ -8,6 +8,63 @@ import subprocess, sys
 import streamlit as st
 import pandas as pd
 import altair as alt  # já vem com o Streamlit
+import sys, subprocess, importlib.util, textwrap, streamlit as st
+
+def _debug_pdf_backend():
+    st.write("🔎 Diagnóstico rápido do PDF:")
+    # Onde o Python está buscando pacotes
+    st.code("\n".join(sys.path[-5:]), language="bash")
+    # fpdf2 instalado?
+    spec = importlib.util.find_spec("fpdf")
+    st.write("Pacote 'fpdf' encontrado?", spec is not None)
+    # Versão instalada (se houver)
+    try:
+        out = subprocess.check_output([sys.executable, "-m", "pip", "show", "fpdf2"], text=True)
+        st.code(out or "(fpdf2 não encontrado)", language="bash")
+    except Exception as e:
+        st.code(f"(erro ao consultar pip show fpdf2: {e})", language="bash")
+
+# Chame essa função só quando PDF_BACKEND == "none":
+# if PDF_BACKEND == "none":
+#     _debug_pdf_backend()
+import io
+
+def _build_html(obra, data_obra, area_cm2, df):
+    # HTML simples e imprimível
+    rows = "".join(
+        f"<tr><td>{i+1}</td><td>{r['codigo_cp']}</td><td>{r['carga_kgf']:.3f}</td>"
+        f"<td>{r['area_cm2']:.2f}</td><td>{r['kn_cm2']:.4f}</td><td>{r['mpa']:.3f}</td></tr>"
+        for i, r in df.iterrows()
+    )
+    html = f"""<!doctype html><html><head>
+<meta charset="utf-8">
+<title>Rupturas — {obra}</title>
+<style>
+body{{font-family:Arial,Helvetica,sans-serif;margin:24px}}
+h1{{margin:0 0 6px}}
+table{{border-collapse:collapse;width:100%;margin-top:12px}}
+th,td{{border:1px solid #999;padding:6px;text-align:center}}
+thead th{{background:#f2f2f2}}
+.small{{color:#444;font-size:12px;margin-top:8px}}
+</style>
+</head><body>
+<h1>Rupturas de Argamassa — Lote</h1>
+<div>Obra: <b>{obra}</b> &nbsp;|&nbsp; Data: <b>{data_obra.strftime('%d/%m/%Y')}</b> &nbsp;|&nbsp; Área do CP: <b>{area_cm2:.2f} cm²</b></div>
+<table>
+<thead><tr><th>#</th><th>Código CP</th><th>Carga (kgf)</th><th>Área (cm²)</th><th>kN/cm²</th><th>MPa</th></tr></thead>
+<tbody>{rows}</tbody>
+</table>
+<p class="small">Conversões: kgf/cm² → kN/cm² (×0,00980665) e MPa (×0,0980665).</p>
+</body></html>"""
+    return html.encode("utf-8")
+
+# … no bloco de ações:
+if st.session_state.registros:
+    df_pdf = pd.DataFrame(st.session_state.registros)
+    if PDF_BACKEND == "none":
+        html_bytes = _build_html(st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao, df_pdf)
+        st.download_button("🖨️ Exportar HTML (imprimir em PDF)", data=html_bytes,
+                           file_name="rupturas_lote.html", mime="text/html")
 
 # ====== Backends de PDF (ReportLab -> FPDF2; instala fpdf2 se faltar) ======
 PDF_BACKEND = "none"  # "reportlab" | "fpdf2" | "none"
