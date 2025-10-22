@@ -10,7 +10,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 
-# ============ PDF backends (ReportLab -> FPDF2; tenta auto-instalar fpdf2) ============
+# =================== PDF backends (ReportLab → FPDF2; tenta auto-instalar fpdf2) ===================
 PDF_BACKEND = "none"  # "reportlab" | "fpdf2" | "none"
 
 def _try_import_pdfs():
@@ -31,6 +31,7 @@ def _try_import_pdfs():
 
 _try_import_pdfs()
 if PDF_BACKEND == "none":
+    # tenta instalar fpdf2 dinamicamente (em dev/local funciona; no Cloud use requirements.txt)
     try:
         st.info("Instalando backend de PDF (fpdf2)...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "fpdf2>=2.7"])
@@ -40,7 +41,7 @@ if PDF_BACKEND == "none":
     except Exception:
         PDF_BACKEND = "none"
 
-# ============ Estado ============
+# =================== Estado ===================
 if "obra" not in st.session_state: st.session_state.obra = ""
 if "data_obra" not in st.session_state: st.session_state.data_obra = date.today()
 if "area_padrao" not in st.session_state: st.session_state.area_padrao = 16.00
@@ -48,29 +49,30 @@ if "registros" not in st.session_state: st.session_state.registros = []
 if "pdf_bytes" not in st.session_state: st.session_state.pdf_bytes = None
 if "plot_png" not in st.session_state: st.session_state.plot_png = None
 if "logo_bytes" not in st.session_state: st.session_state.logo_bytes = None
-if "logo_mime" not in st.session_state: st.session_state.logo_mime = None
 if "footer_text" not in st.session_state: st.session_state.footer_text = ""
 if "theme" not in st.session_state: st.session_state.theme = "Escuro"
 
-# ============ Barra lateral: Tema + Logo + Rodapé ============
+# =================== Barra lateral: Tema + Logo + Rodapé ===================
 with st.sidebar:
     st.header("Preferências")
-    st.session_state.theme = st.radio("Tema", ["Escuro", "Claro"], horizontal=True, index=0 if st.session_state.theme=="Escuro" else 1)
+    st.session_state.theme = st.radio("Tema", ["Escuro", "Claro"],
+                                      horizontal=True,
+                                      index=0 if st.session_state.theme == "Escuro" else 1)
     st.markdown("---")
     st.subheader("Logo da empresa (opcional)")
     up = st.file_uploader("PNG, JPG ou SVG", type=["png", "jpg", "jpeg", "svg"], accept_multiple_files=False)
     if up is not None:
         st.session_state.logo_bytes = up.read()
-        st.session_state.logo_mime = up.type
-        st.image(st.session_state.logo_bytes, caption="Pré-visualização", use_column_width=True)
+        st.image(st.session_state.logo_bytes, caption="Pré-visualização", use_container_width=True)
     st.markdown("---")
     st.subheader("Rodapé do relatório (opcional)")
     st.session_state.footer_text = st.text_area(
         "Observações (norma, técnico responsável, etc.)",
-        st.session_state.footer_text, height=100, placeholder="Ex.: Resultados conforme ABNT NBR xxxx. Técnico resp.: Fulano CREA 000000/D."
+        st.session_state.footer_text, height=100,
+        placeholder="Ex.: Resultados conforme ABNT NBR xxxx. Técnico resp.: Fulano CREA 000000/D."
     )
 
-# ============ Tema (Win11-like) ============
+# =================== Tema (Windows-11 like) ===================
 if st.session_state.theme == "Escuro":
     ACCENT = "#3B82F6"; SURFACE = "#0b0f14"; CARD_BG = "rgba(255,255,255,0.06)"; BORDER = "rgba(255,255,255,0.14)"; TEXT="#f3f4f6"
 else:
@@ -105,59 +107,76 @@ table td, table th {{ color: var(--text); }}
   box-shadow: 0 6px 18px rgba(0,0,0,.06);
 }}
 .small-note {{ opacity:.8; font-size:.9rem; }}
-.logo-bar {{ display:flex; align-items:center; gap:.75rem; margin:.25rem 0 1rem; }}
-.logo-bar img {{ height:40px; }}
+.logo-wrap {{ display:flex; align-items:center; gap:.75rem; margin:.25rem 0 1rem; }}
+.logo-wrap img {{ height:44px; border-radius:8px; }}
 </style>
 """, unsafe_allow_html=True)
 
-# ============ Cabeçalho ============
-st.markdown("<div class='logo-bar'>"
-            + (f"<img src='data:{st.session_state.logo_mime};base64,{st.session_state.logo_bytes.hex()}'/>" if st.session_state.logo_bytes else "")
-            + "<h1 style='margin:0'>Rupturas de Argamassa</h1></div>", unsafe_allow_html=True)
-st.caption("Entrada por CP: **carga de ruptura (kgf)**. Área por obra. Saídas: **kN/cm²** e **MPa**. Gráfico somente com pontos e PDF com o mesmo gráfico.")
+# =================== Cabeçalho ===================
+col_logo, col_title = st.columns([1,4])
+with col_logo:
+    if st.session_state.logo_bytes:
+        st.image(st.session_state.logo_bytes)
+with col_title:
+    st.markdown("<h1 style='margin:0'>Rupturas de Argamassa</h1>", unsafe_allow_html=True)
+    st.caption("Entrada por CP: **carga de ruptura (kgf)**. Área por obra. Saídas: **kN/cm²** e **MPa**. Gráfico somente com pontos e PDF com o mesmo gráfico.")
 
-# ============ Conversões ============
+# =================== Conversões ===================
 KGF_CM2_TO_MPA    = 0.0980665
 KGF_CM2_TO_KN_CM2 = 0.00980665
 
-# ============ Helpers ============
+# =================== Helpers ===================
 def tensoes_from_kgf(carga_kgf: float, area_cm2: float):
+    """Retorna (kgf/cm², kN/cm², MPa) a partir de carga (kgf) e área (cm²)."""
     if area_cm2 <= 0:
         return None, None, None
     stress_kgf_cm2 = carga_kgf / area_cm2
     return stress_kgf_cm2, stress_kgf_cm2 * KGF_CM2_TO_KN_CM2, stress_kgf_cm2 * KGF_CM2_TO_MPA
 
-def _media(lst): return None if not lst else mean(lst)
+def _media(lst):
+    return None if not lst else mean(lst)
+
 def _dp(lst):
     if not lst: return None
     if len(lst) == 1: return 0.0
     return pstdev(lst)
 
-# ============ Geração de PNG do gráfico (Plotly + Kaleido) ============
+# =================== Geração de PNG do gráfico (Plotly + Kaleido) ===================
 def chart_png_from_df(df: pd.DataFrame) -> bytes | None:
+    """Gera PNG (apenas pontos) MPa por CP para PDF, usando Plotly+Kaleido."""
     if df.empty: return None
     try:
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
     except Exception:
         return None
+
     codes = df["codigo_cp"].astype(str).tolist()
     mpa_vals = df["mpa"].tolist()
+
     fig = make_subplots(rows=1, cols=1)
-    fig.add_trace(go.Scatter(x=codes, y=mpa_vals, mode="markers", marker=dict(size=9), name="MPa"), row=1, col=1)
+    fig.add_trace(
+        go.Scatter(x=codes, y=mpa_vals, mode="markers", marker=dict(size=9), name="MPa"),
+        row=1, col=1
+    )
     ymax = max(mpa_vals) * 1.15 if mpa_vals else 1
     fig.update_yaxes(range=[0, ymax], title_text="MPa", row=1, col=1)
     fig.update_xaxes(title_text="Código do CP", row=1, col=1)
-    fig.update_layout(title_text="Gráfico de ruptura (MPa por CP)", margin=dict(l=20, r=20, t=40, b=40), height=360,
-                      paper_bgcolor="white", plot_bgcolor="white")
+    fig.update_layout(
+        title_text="Gráfico de ruptura (MPa por CP)",
+        margin=dict(l=20, r=20, t=40, b=40),
+        height=360,
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+    )
     try:
-        return fig.to_image(format="png", scale=2)
+        return fig.to_image(format="png", scale=2)  # requer kaleido
     except Exception:
         return None
 
-# ============ PDF ============
-def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame, chart_png: bytes | None,
-              logo_bytes: bytes | None, footer_text: str) -> bytes:
+# =================== PDF ===================
+def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame,
+              chart_png: bytes | None, logo_bytes: bytes | None, footer_text: str) -> bytes:
     if PDF_BACKEND == "reportlab":
         from reportlab.lib.pagesizes import A4
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
@@ -168,22 +187,26 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame, cha
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=24, leftMargin=24, topMargin=28, bottomMargin=28)
         styles = getSampleStyleSheet()
         elems = []
-        # Logo
+
+        # logo
         if logo_bytes:
             try:
                 img_logo = Image(io.BytesIO(logo_bytes))
                 img_logo._restrictSize(120, 60)
-                elems.append(img_logo)
-                elems.append(Spacer(1, 6))
+                elems += [img_logo, Spacer(1, 6)]
             except Exception:
                 pass
-        # Título / info
+
+        # título e info
         elems.append(Paragraph("<para align='center'><b>Rupturas de Argamassa — Lote</b></para>", styles["Title"]))
-        info = Paragraph(f"<para align='center'>Obra: <b>{obra}</b> &nbsp;&nbsp;|&nbsp;&nbsp; "
-                         f"Data: <b>{data_obra.strftime('%d/%m/%Y')}</b> &nbsp;&nbsp;|&nbsp;&nbsp; "
-                         f"Área do CP: <b>{area_cm2:.2f} cm²</b></para>", styles["Normal"])
-        elems.extend([Spacer(1, 6), info, Spacer(1, 12)])
-        # Tabela
+        info = Paragraph(
+            f"<para align='center'>Obra: <b>{obra}</b> &nbsp;&nbsp;|&nbsp;&nbsp; "
+            f"Data: <b>{data_obra.strftime('%d/%m/%Y')}</b> &nbsp;&nbsp;|&nbsp;&nbsp; "
+            f"Área do CP: <b>{area_cm2:.2f} cm²</b></para>", styles["Normal"]
+        )
+        elems += [Spacer(1, 6), info, Spacer(1, 12)]
+
+        # tabela
         data_table = [["#", "Código CP", "Carga (kgf)", "Área (cm²)", "kN/cm²", "MPa"]]
         for i, row in enumerate(df.itertuples(index=False), start=1):
             data_table.append([i, row.codigo_cp, f"{row.carga_kgf:.3f}", f"{row.area_cm2:.2f}",
@@ -199,24 +222,26 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame, cha
             ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.whitesmoke, colors.HexColor("#f6f7fb")]),
         ]))
         elems.append(tbl)
-        # Gráfico
+
+        # gráfico
         if chart_png:
-            elems.append(Spacer(1, 14))
-            elems.append(Paragraph("<b>Gráfico de ruptura</b>", styles["Heading3"]))
-            elems.append(Spacer(1, 6))
+            elems += [Spacer(1, 14), Paragraph("<b>Gráfico de ruptura</b>", styles["Heading3"]), Spacer(1, 6)]
             elems.append(Image(io.BytesIO(chart_png), width=500, height=280))
-        # Rodapé
+
+        # rodapé
         if footer_text.strip():
-            elems.append(Spacer(1, 10))
-            elems.append(Paragraph(f"<para align='left'>{footer_text.strip()}</para>", styles["Normal"]))
+            elems += [Spacer(1, 10), Paragraph(f"<para align='left'>{footer_text.strip()}</para>", styles["Normal"])]
+
         doc.build(elems)
-        buffer.seek(0); return buffer.read()
+        buffer.seek(0)
+        return buffer.read()
 
     if PDF_BACKEND == "fpdf2":
         from fpdf import FPDF
         pdf = FPDF(orientation="P", unit="mm", format="A4")
         pdf.add_page()
-        # Logo
+
+        # logo
         if logo_bytes:
             try:
                 path_logo = "/tmp/_logo.png"
@@ -224,11 +249,14 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame, cha
                 pdf.image(path_logo, x=10, y=10, w=35)
             except Exception:
                 pass
+
         pdf.set_font("Arial", "B", 14)
         pdf.cell(0, 7, "Rupturas de Argamassa — Lote", ln=1, align="C")
         pdf.set_font("Arial", size=11)
-        pdf.cell(0, 6, f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²", ln=1, align="C")
+        pdf.cell(0, 6, f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²",
+                 ln=1, align="C")
         pdf.ln(3)
+
         headers = ["#", "Código CP", "Carga (kgf)", "Área (cm²)", "kN/cm²", "MPa"]
         widths  = [8, 52, 28, 22, 28, 24]
         pdf.set_font("Arial", "B", 10)
@@ -239,46 +267,55 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame, cha
                      f"{row.kn_cm2:.4f}", f"{row.mpa:.3f}"]
             for c, w in zip(cells, widths): pdf.cell(w, 6, c, border=1, align="C")
             pdf.ln()
+
+        # gráfico
         if chart_png:
             path = "/tmp/chart_mpa.png"
             with open(path, "wb") as f: f.write(chart_png)
             pdf.ln(3); pdf.set_font("Arial", "B", 11)
             pdf.cell(0, 6, "Gráfico de ruptura (MPa por CP)", ln=1, align="L")
             pdf.image(path, x=None, y=None, w=180)
+
+        # rodapé
         if footer_text.strip():
-            pdf.ln(3)
-            pdf.set_font("Arial", size=9)
+            pdf.ln(3); pdf.set_font("Arial", size=9)
             pdf.multi_cell(0, 5, footer_text.strip(), align="L")
+
         return pdf.output(dest="S").encode("latin1")
 
     raise RuntimeError("Sem backend de PDF disponível.")
 
-# ============ Conversor rápido ============
+# =================== Conversor rápido ===================
 with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=False):
     colc, cola = st.columns([1,1])
     with colc:
         v_kgf = st.number_input("Carga (kgf)", min_value=0.0, value=0.0, step=0.1, format="%.3f")
     with cola:
-        area_demo = st.number_input("Área (cm²) p/ conversão", min_value=0.0001, value=st.session_state.area_padrao, step=0.01, format="%.2f")
+        area_demo = st.number_input("Área (cm²) p/ conversão", min_value=0.0001,
+                                    value=st.session_state.area_padrao, step=0.01, format="%.2f")
     if v_kgf and area_demo:
         _, kn_demo, mpa_demo = tensoes_from_kgf(v_kgf, area_demo)
-        st.markdown(f"<div class='kpi'>"
-                    f"<div><b>Entrada</b><br>{v_kgf:.3f} kgf</div>"
-                    f"<div><b>Área</b><br>{area_demo:.2f} cm²</div>"
-                    f"<div><b>kN/cm²</b><br>{kn_demo:.5f}</div>"
-                    f"<div><b>MPa</b><br>{mpa_demo:.4f}</div>"
-                    f"</div>", unsafe_allow_html=True)
+        st.markdown(
+            f"<div class='kpi'>"
+            f"<div><b>Entrada</b><br>{v_kgf:.3f} kgf</div>"
+            f"<div><b>Área</b><br>{area_demo:.2f} cm²</div>"
+            f"<div><b>kN/cm²</b><br>{kn_demo:.5f}</div>"
+            f"<div><b>MPa</b><br>{mpa_demo:.4f}</div>"
+            f"</div>", unsafe_allow_html=True
+        )
 
-# ============ Dados da obra ============
+# =================== Dados da obra ===================
 with st.form("obra_form"):
     st.subheader("Dados da obra")
     col1, col2, col3 = st.columns([2,1,1])
     with col1:
-        obra = st.text_input("Nome da obra", value=st.session_state.obra, placeholder="Ex.: Residencial Jardim Tropical")
+        obra = st.text_input("Nome da obra", value=st.session_state.obra,
+                             placeholder="Ex.: Residencial Jardim Tropical")
     with col2:
         data_obra = st.date_input("Data", value=st.session_state.data_obra, format="DD/MM/YYYY")
     with col3:
-        area_padrao = st.number_input("Área do CP (cm²)", min_value=0.0001, value=float(st.session_state.area_padrao), step=0.01, format="%.2f")
+        area_padrao = st.number_input("Área do CP (cm²)", min_value=0.0001,
+                                      value=float(st.session_state.area_padrao), step=0.01, format="%.2f")
     if st.form_submit_button("Aplicar dados da obra"):
         st.session_state.obra = obra.strip()
         st.session_state.data_obra = data_obra
@@ -290,7 +327,7 @@ with st.form("obra_form"):
 qtd = len(st.session_state.registros)
 st.info(f"CPs no lote atual: **{qtd}/12**")
 
-# ============ Lançamento CP ============
+# =================== Lançamento CP ===================
 disabled_add = (qtd >= 12) or (not st.session_state.obra)
 with st.form("cp_form", clear_on_submit=True):
     st.subheader("Lançar ruptura (apenas carga em kgf)")
@@ -298,7 +335,8 @@ with st.form("cp_form", clear_on_submit=True):
     carga_kgf  = st.number_input("Carga de ruptura (kgf)", min_value=0.0, step=0.1, format="%.3f")
     if carga_kgf and st.session_state.area_padrao:
         _, _kn_prev, _mp_prev = tensoes_from_kgf(carga_kgf, st.session_state.area_padrao)
-        st.caption(f"→ Conversões com área {st.session_state.area_padrao:.2f} cm²: **{_kn_prev:.5f} kN/cm²** • **{_mp_prev:.4f} MPa**")
+        st.caption(f"→ Conversões com área {st.session_state.area_padrao:.2f} cm²: "
+                   f"**{_kn_prev:.5f} kN/cm²** • **{_mp_prev:.4f} MPa**")
     if st.form_submit_button("Adicionar CP ao lote", disabled=disabled_add):
         if not st.session_state.obra:
             st.error("Defina os dados da obra antes de lançar CPs.")
@@ -318,11 +356,12 @@ with st.form("cp_form", clear_on_submit=True):
             })
             st.session_state.plot_png = None
 
-# ============ Tabela + Gráfico ============
+# =================== Tabela + Gráfico ===================
 if st.session_state.registros:
     df = pd.DataFrame(st.session_state.registros)
     df_display = df[["codigo_cp","carga_kgf","area_cm2","kn_cm2","mpa"]].copy()
     df_display.columns = ["Código CP","Carga (kgf)","Área (cm²)","kN/cm²","MPa"]
+
     st.subheader("Lote atual")
     st.dataframe(df_display, use_container_width=True)
 
@@ -333,6 +372,7 @@ if st.session_state.registros:
     st.subheader("Gráfico de ruptura (MPa por CP)")
     chart_df = pd.DataFrame({"Código CP": df["codigo_cp"].values, "MPa": df["mpa"].values})
     y_max = max(chart_df["MPa"]) * 1.15 if len(chart_df) else 1
+    # pontos somente (Altair)
     points = (
         alt.Chart(chart_df)
         .mark_point(size=90, filled=True)
@@ -340,46 +380,67 @@ if st.session_state.registros:
             x=alt.X("Código CP:N", sort=None, title="Código do CP"),
             y=alt.Y("MPa:Q", scale=alt.Scale(domain=[0, y_max]), title="MPa"),
             tooltip=["Código CP", alt.Tooltip("MPa:Q", format=".3f")]
-        ).properties(height=340)
+        )
+        .properties(height=340)
     )
     st.altair_chart(points, use_container_width=True)
 
-    if st.session_state.plot_png is None:
-        st.session_state.plot_png = chart_png_from_df(df)
-
     st.divider()
 
-# ============ Ações ============
+# =================== Ações (regera PNG no export) ===================
 col1, col2, col3 = st.columns(3)
 with col1:
     if st.button("Limpar lote", disabled=(not st.session_state.registros)):
-        st.session_state.registros = []; st.session_state.pdf_bytes = None; st.session_state.plot_png = None
+        st.session_state.registros = []
+        st.session_state.pdf_bytes = None
+        st.session_state.plot_png = None
         st.success("Lote limpo.")
+
 with col2:
     if st.session_state.registros:
-        st.download_button("Baixar CSV",
-                           data=pd.DataFrame(st.session_state.registros).to_csv(index=False).encode("utf-8"),
-                           file_name="rupturas_lote.csv", mime="text/csv")
+        st.download_button(
+            "Baixar CSV",
+            data=pd.DataFrame(st.session_state.registros).to_csv(index=False).encode("utf-8"),
+            file_name="rupturas_lote.csv",
+            mime="text/csv",
+        )
+
 with col3:
     disable_pdf = (not st.session_state.registros) or (PDF_BACKEND == "none")
     if st.button("📄 Exportar para PDF", disabled=disable_pdf, type="primary"):
         try:
             df_pdf = pd.DataFrame(st.session_state.registros)
+
+            # 🔁 Regera o PNG do gráfico AGORA (garante que vá no PDF)
+            png_now = chart_png_from_df(df_pdf)
+            st.session_state.plot_png = png_now  # guarda para reuso/diagnóstico
+
             st.session_state.pdf_bytes = build_pdf(
-                st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao,
-                df_pdf, st.session_state.plot_png, st.session_state.logo_bytes, st.session_state.footer_text
+                st.session_state.obra,
+                st.session_state.data_obra,
+                st.session_state.area_padrao,
+                df_pdf,
+                png_now,
+                st.session_state.logo_bytes,
+                st.session_state.footer_text,
             )
-            st.success("PDF gerado! Baixe abaixo.")
+
+            if png_now is None:
+                st.warning("PDF gerado **sem o gráfico** (plotly/kaleido ausentes ou falha ao exportar imagem). "
+                           "Confira `requirements.txt` e reinicie o app.")
+            else:
+                st.success("PDF gerado com gráfico! Baixe abaixo.")
         except Exception as e:
             st.error(f"Falha ao gerar PDF: {e}")
 
-# ============ Download do PDF / Fallback HTML ============
+# =================== Download do PDF / Fallback HTML ===================
 if st.session_state.get("pdf_bytes"):
     data_str = st.session_state.data_obra.strftime("%Y%m%d")
     safe_obra = "".join(c for c in st.session_state.obra if c.isalnum() or c in (" ","-","_")).strip().replace(" ","_")
     fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf"
     st.download_button("⬇️ Baixar PDF do Lote", data=st.session_state.pdf_bytes,
                        file_name=fname, mime="application/pdf")
+
 elif st.session_state.registros and PDF_BACKEND == "none":
     # fallback HTML imprimível
     def build_html(obra, data_obra, area_cm2, df, footer_text):
@@ -405,15 +466,25 @@ thead th{{background:#f2f2f2}}
 {('<p>'+footer_text+'</p>') if footer_text.strip() else ''}
 </body></html>"""
         return html.encode("utf-8")
-    html_bytes = build_html(st.session_state.obra, st.session_state.data_obra,
-                            st.session_state.area_padrao, pd.DataFrame(st.session_state.registros),
-                            st.session_state.footer_text)
+
+    html_bytes = build_html(
+        st.session_state.obra, st.session_state.data_obra,
+        st.session_state.area_padrao, pd.DataFrame(st.session_state.registros),
+        st.session_state.footer_text
+    )
     st.download_button("🖨️ Exportar HTML (imprimir em PDF)", data=html_bytes,
                        file_name="rupturas_lote.html", mime="text/html")
 
-# ============ Rodapé / diagnóstico ============
+# =================== Rodapé / diagnóstico ===================
+# pequeno check se o ambiente tem plotly/kaleido para imagem
+try:
+    import plotly  # noqa: F401
+    _img_ok = True
+except Exception:
+    _img_ok = False
+
 st.caption(
     "Conversões: [kgf/cm²] → kN/cm² (×0,00980665) e MPa (×0,0980665). "
     + (f"PDF via {PDF_BACKEND}" if PDF_BACKEND != "none" else "PDF desativado (instale fpdf2).")
+    + (" • Backend de imagem: ✅ plotly/kaleido" if _img_ok else " • Backend de imagem: ❌ indisponível")
 )
-st.caption(f"Status do backend PDF: **{PDF_BACKEND}**")
