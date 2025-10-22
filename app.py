@@ -378,6 +378,7 @@ with col3:
         except Exception as e:
             st.error(f"Falha ao gerar PDF: {e}")
 
+# =================== Download do PDF ou Fallback HTML (com gráfico) ===================
 def svg_scatter_from_df(df, width=900, height=360, margin=50):
     """Gera um SVG simples (scatter MPa por CP) sem bibliotecas externas."""
     if df.empty:
@@ -390,9 +391,7 @@ def svg_scatter_from_df(df, width=900, height=360, margin=50):
     plot_w = width - margin*2
     plot_h = height - margin*2
 
-    def x_pos(i, n):
-
-# =================== Download do PDF ou Fallback HTML (com gráfico) ===================
+    def x_pos(i, n)
 if st.session_state.get("pdf_bytes"):
     data_str = st.session_state.data_obra.strftime("%Y%m%d")
     safe_obra = "".join(c for c in st.session_state.obra if c.isalnum() or c in (" ","-","_")).strip().replace(" ","_")
