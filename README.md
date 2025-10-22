@@ -1,20 +1,14 @@
-# Rupturas de Argamassa
+# Rupturas de Argamassa (kgf → kN/cm² / MPa)
 
-App Streamlit para lançar rupturas de argamassa por obra (até 12 CPs por lote), com conversões automáticas:
-- kgf/cm² → kN/cm²
-- kgf/cm² → MPa
-- Entrada alternativa: carga (kgf) + área (cm²)
+Aplicativo Streamlit para lançar rupturas (entrada somente **kgf**) e obter tensões em **kN/cm²** e **MPa**, com:
+- Tabela e **gráfico de pontos** (MPa por CP).
+- Exportação **CSV**.
+- **PDF com gráfico** (quando `fpdf2` + `kaleido` estão instalados).
+- **HTML com gráfico (SVG)** como fallback (funciona sem dependências de imagem).
+- Tema escuro e claro com acento **#d75413**.
+- Logo e rodapé opcionais no PDF.
 
-Gera PDF do lote (tabela + estatística de média e DP) e CSV.
+---
 
-## Como rodar local
+## Estrutura de pastas
 
-```bash
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS/Linux
-source .venv/bin/activate
-
-pip install -r requirements.txt
-streamlit run app.py
