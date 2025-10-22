@@ -143,7 +143,7 @@ def _dp(lst):
 
 # =================== Geração de PNG do gráfico (Plotly + Kaleido) ===================
 def chart_png_from_df(df: pd.DataFrame) -> bytes | None:
-    """Gera PNG (apenas pontos) MPa por CP para PDF, usando Plotly+Kaleido."""
+    """Gera PNG (apenas pontos) MPa por CP para PDF/HTML, usando Plotly+Kaleido."""
     if df.empty: return None
     try:
         import plotly.graph_objects as go
@@ -433,13 +433,19 @@ with col3:
         except Exception as e:
             st.error(f"Falha ao gerar PDF: {e}")
 
-# =================== Download do PDF / Fallback HTML ===================
-elif st.session_state.registros and PDF_BACKEND == "none":
-    import base64
+# =================== Download do PDF ou Fallback HTML (com gráfico) ===================
+if st.session_state.get("pdf_bytes"):
+    data_str = st.session_state.data_obra.strftime("%Y%m%d")
+    safe_obra = "".join(c for c in st.session_state.obra if c.isalnum() or c in (" ","-","_")).strip().replace(" ","_")
+    fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf"
+    st.download_button("⬇️ Baixar PDF do Lote", data=st.session_state.pdf_bytes,
+                       file_name=fname, mime="application/pdf")
 
-    # Gera o PNG do gráfico agora (usa o mesmo gerador que o PDF usaria)
+elif st.session_state.registros and PDF_BACKEND == "none":
+    # Fallback HTML imprimível **com gráfico embutido** (base64)
+    import base64
     df_html = pd.DataFrame(st.session_state.registros)
-    png_now = chart_png_from_df(df_html)  # pode ser None se plotly/kaleido faltarem
+    png_now = chart_png_from_df(df_html)  # pode ser None sem plotly/kaleido
 
     def build_html(obra, data_obra, area_cm2, df, footer_text, chart_png: bytes | None):
         rows = "".join(
@@ -455,7 +461,6 @@ elif st.session_state.registros and PDF_BACKEND == "none":
             <img alt="Gráfico de ruptura" src="data:image/png;base64,{b64}"
                  style="max-width:100%;height:auto;border:1px solid #ccc;border-radius:8px"/>
             """
-
         html = f"""<!doctype html><html><head>
 <meta charset="utf-8"><title>Rupturas — {obra}</title>
 <style>
@@ -484,7 +489,7 @@ thead th{{background:#f2f2f2}}
                        file_name="rupturas_lote.html", mime="text/html")
 
 # =================== Rodapé / diagnóstico ===================
-# pequeno check se o ambiente tem plotly/kaleido para imagem
+# pequeno check se o ambiente tem plotly (para imagem com kaleido)
 try:
     import plotly  # noqa: F401
     _img_ok = True
