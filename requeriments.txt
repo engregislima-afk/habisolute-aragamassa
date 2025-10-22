@@ -1,5 +1,5 @@
 streamlit>=1.32
 pandas>=2.0
-fpdf2>=2.7        # habilita o PDF
+fpdf2>=2.7
 plotly>=5.18
-kaleido>=0.2.1    # exporta o gráfico como PNG para o PDF
+kaleido>=0.2.1
