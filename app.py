@@ -338,47 +338,56 @@ if st.session_state.registros:
     st.altair_chart(points, use_container_width=True)
     st.divider()
 
-# ---------------- Ações (limpar / CSV / Exportar PDF ou HTML) ----------------
-col1,col2,col3 = st.columns(3)
+# ---------------- Ações (1 clique = baixar) ----------------
+col1, col2, col3 = st.columns(3)
+
 with col1:
-    if st.button("Limpar lote", disabled=(not st.session_state.registros)):
-        st.session_state.registros = []
-        st.session_state.pdf_bytes = None
-        st.session_state.html_fallback_bytes = None
-        st.success("Lote limpo.")
+    st.button("Limpar lote", disabled=(not st.session_state.registros),
+              on_click=lambda: (
+                  st.session_state.registros.clear(),
+                  st.session_state.__setitem__("pdf_bytes", None),
+                  st.session_state.__setitem__("html_fallback_bytes", None)
+              ))
 
 with col2:
     if st.session_state.registros:
-        st.download_button("Baixar CSV",
-                           data=pd.DataFrame(st.session_state.registros).to_csv(index=False).encode("utf-8"),
-                           file_name="rupturas_lote.csv", mime="text/csv")
+        st.download_button(
+            "Baixar CSV",
+            data=pd.DataFrame(st.session_state.registros).to_csv(index=False).encode("utf-8"),
+            file_name="rupturas_lote.csv",
+            mime="text/csv"
+        )
 
 with col3:
-    # 👉 Botão sempre habilitado quando houver dados. Se não tiver backend, faz fallback HTML com gráfico.
-    disable_pdf = (not st.session_state.registros)
-    click = st.button("📄 Exportar para PDF", disabled=disable_pdf, type="primary")
-    if click and st.session_state.registros:
+    if not st.session_state.registros:
+        st.button("📄 Exportar", disabled=True)
+    else:
         df_pdf = pd.DataFrame(st.session_state.registros)
-        st.session_state.pdf_bytes = None
-        st.session_state.html_fallback_bytes = None
 
         if PDF_BACKEND != "none":
-            try:
-                png_now = chart_png_from_df(df_pdf)   # se kaleido faltar, volta None
-                st.session_state.pdf_bytes = build_pdf(
-                    st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao,
-                    df_pdf, png_now, st.session_state.logo_bytes, st.session_state.footer_text
-                )
-                if png_now is None:
-                    st.warning("PDF gerado **sem o gráfico** (plotly/kaleido ausentes).")
-                else:
-                    st.success("PDF gerado com gráfico! Baixe abaixo.")
-            except Exception as e:
-                st.error(f"Falha ao gerar PDF: {e}")
+            # 1 clique → já baixa o PDF (gera agora e entrega ao download_button)
+            from datetime import datetime
+            png_now = chart_png_from_df(df_pdf)  # se kaleido faltar, sai PDF sem gráfico
+            pdf_bytes = build_pdf(
+                st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao,
+                df_pdf, png_now, st.session_state.logo_bytes, st.session_state.footer_text
+            )
+            data_str = st.session_state.data_obra.strftime("%Y%m%d")
+            safe_obra = "".join(c for c in st.session_state.obra if c.isalnum() or c in (" ","-","_")).strip().replace(" ","_")
+            fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf"
+            st.download_button(
+                "📄 Exportar para PDF",
+                data=pdf_bytes,
+                file_name=fname,
+                mime="application/pdf"
+            )
+            if png_now is None:
+                st.caption("⚠️ PDF gerado sem o gráfico (instale `plotly` + `kaleido` para incluí-lo).")
         else:
-            st.info("Backend de PDF indisponível — gerando HTML imprimível com gráfico.")
+            # Sem backend → 1 clique baixa HTML imprimível com o gráfico (SVG)
             svg_chart = svg_scatter_from_df(df_pdf)
-            def build_html_fallback(obra, data_obra, area_cm2, df, footer_text, svg_graph: str):
+
+            def build_html_fallback(obra, data_obra, area_cm2, df, footer_text, svg_graph: str) -> bytes:
                 rows = "".join(
                     f"<tr><td>{i+1}</td><td>{r['codigo_cp']}</td><td>{r['carga_kgf']:.3f}</td>"
                     f"<td>{r['area_cm2']:.2f}</td><td>{r['kn_cm2']:.4f}</td><td>{r['mpa']:.3f}</td></tr>"
@@ -404,22 +413,18 @@ h2{{margin:0 0 8px}} section{{margin:16px 0}}
 <section>{svg_graph}</section>
 {('<p>'+footer_text+'</p>') if footer_text.strip() else ''}
 </body></html>""".encode("utf-8")
-            st.session_state.html_fallback_bytes = build_html_fallback(
+
+            html_bytes = build_html_fallback(
                 st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao,
                 df_pdf, st.session_state.footer_text, svg_chart
             )
-
-# ---------------- Downloads (PDF OU HTML fallback) ----------------
-if st.session_state.get("pdf_bytes"):
-    data_str = st.session_state.data_obra.strftime("%Y%m%d")
-    safe_obra = "".join(c for c in st.session_state.obra if c.isalnum() or c in (" ","-","_")).strip().replace(" ","_")
-    fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf"
-    st.download_button("⬇️ Baixar PDF do Lote", data=st.session_state.pdf_bytes,
-                       file_name=fname, mime="application/pdf")
-elif st.session_state.get("html_fallback_bytes"):
-    st.download_button("🖨️ Baixar HTML (imprimir em PDF)",
-                       data=st.session_state.html_fallback_bytes,
-                       file_name="rupturas_lote.html", mime="text/html")
+            st.download_button(
+                "🖨️ Exportar (HTML – imprimir em PDF)",
+                data=html_bytes,
+                file_name="rupturas_lote.html",
+                mime="text/html"
+            )
+            st.caption("Sem backend de PDF neste ambiente. O HTML já abre e você imprime em PDF.")
 
 # ---------------- Rodapé diagnóstico ----------------
 try:
