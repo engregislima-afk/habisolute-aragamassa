@@ -1,3 +1,4 @@
+
 # app.py — Rupturas de Argamassa (entrada só kgf; saídas kN/cm² e MPa)
 from __future__ import annotations
 import io
@@ -7,66 +8,9 @@ import subprocess, sys
 
 import streamlit as st
 import pandas as pd
-import altair as alt  # já vem com o Streamlit
-import sys, subprocess, importlib.util, textwrap, streamlit as st
+import altair as alt
 
-def _debug_pdf_backend():
-    st.write("🔎 Diagnóstico rápido do PDF:")
-    # Onde o Python está buscando pacotes
-    st.code("\n".join(sys.path[-5:]), language="bash")
-    # fpdf2 instalado?
-    spec = importlib.util.find_spec("fpdf")
-    st.write("Pacote 'fpdf' encontrado?", spec is not None)
-    # Versão instalada (se houver)
-    try:
-        out = subprocess.check_output([sys.executable, "-m", "pip", "show", "fpdf2"], text=True)
-        st.code(out or "(fpdf2 não encontrado)", language="bash")
-    except Exception as e:
-        st.code(f"(erro ao consultar pip show fpdf2: {e})", language="bash")
-
-# Chame essa função só quando PDF_BACKEND == "none":
-# if PDF_BACKEND == "none":
-#     _debug_pdf_backend()
-import io
-
-def _build_html(obra, data_obra, area_cm2, df):
-    # HTML simples e imprimível
-    rows = "".join(
-        f"<tr><td>{i+1}</td><td>{r['codigo_cp']}</td><td>{r['carga_kgf']:.3f}</td>"
-        f"<td>{r['area_cm2']:.2f}</td><td>{r['kn_cm2']:.4f}</td><td>{r['mpa']:.3f}</td></tr>"
-        for i, r in df.iterrows()
-    )
-    html = f"""<!doctype html><html><head>
-<meta charset="utf-8">
-<title>Rupturas — {obra}</title>
-<style>
-body{{font-family:Arial,Helvetica,sans-serif;margin:24px}}
-h1{{margin:0 0 6px}}
-table{{border-collapse:collapse;width:100%;margin-top:12px}}
-th,td{{border:1px solid #999;padding:6px;text-align:center}}
-thead th{{background:#f2f2f2}}
-.small{{color:#444;font-size:12px;margin-top:8px}}
-</style>
-</head><body>
-<h1>Rupturas de Argamassa — Lote</h1>
-<div>Obra: <b>{obra}</b> &nbsp;|&nbsp; Data: <b>{data_obra.strftime('%d/%m/%Y')}</b> &nbsp;|&nbsp; Área do CP: <b>{area_cm2:.2f} cm²</b></div>
-<table>
-<thead><tr><th>#</th><th>Código CP</th><th>Carga (kgf)</th><th>Área (cm²)</th><th>kN/cm²</th><th>MPa</th></tr></thead>
-<tbody>{rows}</tbody>
-</table>
-<p class="small">Conversões: kgf/cm² → kN/cm² (×0,00980665) e MPa (×0,0980665).</p>
-</body></html>"""
-    return html.encode("utf-8")
-
-# … no bloco de ações:
-if st.session_state.registros:
-    df_pdf = pd.DataFrame(st.session_state.registros)
-    if PDF_BACKEND == "none":
-        html_bytes = _build_html(st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao, df_pdf)
-        st.download_button("🖨️ Exportar HTML (imprimir em PDF)", data=html_bytes,
-                           file_name="rupturas_lote.html", mime="text/html")
-
-# ====== Backends de PDF (ReportLab -> FPDF2; instala fpdf2 se faltar) ======
+# ====================== PDF backends (ReportLab -> FPDF2; tenta auto-instalar fpdf2) ======================
 PDF_BACKEND = "none"  # "reportlab" | "fpdf2" | "none"
 
 def _try_import_pdfs():
@@ -119,13 +63,13 @@ hr {{ border-color:#2a3142; }}
 """, unsafe_allow_html=True)
 
 st.markdown("<h1>Rupturas de Argamassa</h1>", unsafe_allow_html=True)
-st.caption("Entrada única por CP: **carga de ruptura (kgf)**. Área do CP por obra. Saídas: **kN/cm²** e **MPa**.")
+st.caption("Entrada por CP: **carga de ruptura (kgf)**. Área do CP por obra. Saídas: **kN/cm²** e **MPa**.")
 
-# ====================== Constantes de conversão ======================
-KGF_CM2_TO_MPA    = 0.0980665     # tensão [kgf/cm²] → MPa
-KGF_CM2_TO_KN_CM2 = 0.00980665    # tensão [kgf/cm²] → kN/cm²
+# ====================== Conversões ======================
+KGF_CM2_TO_MPA    = 0.0980665
+KGF_CM2_TO_KN_CM2 = 0.00980665
 
-# ====================== Estado ======================
+# ====================== Estado (INICIALIZE ANTES DE USAR) ======================
 if "obra" not in st.session_state: st.session_state.obra = ""
 if "data_obra" not in st.session_state: st.session_state.data_obra = date.today()
 if "area_padrao" not in st.session_state: st.session_state.area_padrao = 16.00  # cm²
@@ -135,7 +79,6 @@ if "pdf_bytes" not in st.session_state: st.session_state.pdf_bytes = None
 
 # ====================== Helpers ======================
 def tensoes_from_kgf(carga_kgf: float, area_cm2: float):
-    """Retorna (kgf/cm², kN/cm², MPa) a partir de carga (kgf) e área (cm²)."""
     if area_cm2 <= 0:
         return None, None, None
     stress_kgf_cm2 = carga_kgf / area_cm2
@@ -151,14 +94,13 @@ def _dp(lst):
     if len(lst) == 1: return 0.0
     return pstdev(lst)
 
-# ====================== PDF Builder ======================
+# ====================== PDF / HTML Builders ======================
 def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> bytes:
     if PDF_BACKEND == "reportlab":
         from reportlab.lib.pagesizes import A4
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
         from reportlab.lib import colors
         from reportlab.lib.styles import getSampleStyleSheet
-
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=24, leftMargin=24, topMargin=28, bottomMargin=28)
         styles = getSampleStyleSheet()
@@ -169,14 +111,10 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
             f"Área do CP: <b>{area_cm2:.2f} cm²</b></para>",
             styles["Normal"]
         )
-
         data_table = [["#", "Código CP", "Carga (kgf)", "Área (cm²)", "kN/cm²", "MPa"]]
         for i, row in enumerate(df.itertuples(index=False), start=1):
-            data_table.append([
-                i, row.codigo_cp, f"{row.carga_kgf:.3f}", f"{row.area_cm2:.2f}",
-                f"{row.kn_cm2:.4f}", f"{row.mpa:.3f}"
-            ])
-
+            data_table.append([i, row.codigo_cp, f"{row.carga_kgf:.3f}", f"{row.area_cm2:.2f}",
+                               f"{row.kn_cm2:.4f}", f"{row.mpa:.3f}"])
         tbl = Table(data_table, repeatRows=1)
         tbl.setStyle(TableStyle([
             ("BACKGROUND", (0,0), (-1,0), colors.HexColor(HB_ORANGE)),
@@ -187,7 +125,6 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
             ("ALIGN", (0,1), (-1,-1), "CENTER"),
             ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.whitesmoke, colors.HexColor("#f2f2f2")]),
         ]))
-
         kn_list  = df["kn_cm2"].tolist()
         mpa_list = df["mpa"].tolist()
         stats = [
@@ -195,7 +132,7 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
             ["Média", f"{_media(kn_list):.4f}", f"{_media(mpa_list):.3f}"],
             ["DP (pop.)", f"{_dp(kn_list):.4f}", f"{_dp(mpa_list):.3f}"],
         ]
-        from reportlab.platypus import Table as T2, TableStyle as TS2
+        from reportlab.platypus import Table as T2, TableStyle as TS2, Paragraph
         tbl_stats = T2(stats)
         tbl_stats.setStyle(TS2([
             ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#e5e7eb")),
@@ -204,7 +141,6 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
             ("ALIGN", (0,0), (-1,-1), "CENTER"),
             ("GRID", (0,0), (-1,-1), 0.4, colors.grey),
         ]))
-
         elems = [title, Spacer(1,8), info, Spacer(1,12), tbl, Spacer(1,16),
                  Paragraph("<b>Resumo estatístico</b>", styles["Heading3"]),
                  Spacer(1,6), tbl_stats]
@@ -213,6 +149,7 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
         return buffer.read()
 
     if PDF_BACKEND == "fpdf2":
+        from fpdf import FPDF
         pdf = FPDF(orientation="P", unit="mm", format="A4")
         pdf.add_page()
         pdf.set_font("Arial", "B", 14)
@@ -220,19 +157,16 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
         pdf.set_font("Arial", size=11)
         pdf.cell(0, 6, f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²", ln=1, align="C")
         pdf.ln(3)
-
         headers = ["#", "Código CP", "Carga (kgf)", "Área (cm²)", "kN/cm²", "MPa"]
         widths  = [8, 52, 28, 22, 28, 24]
         pdf.set_font("Arial", "B", 10)
         for h, w in zip(headers, widths): pdf.cell(w, 7, h, border=1, align="C")
         pdf.ln(); pdf.set_font("Arial", size=10)
-
         for i, row in enumerate(df.itertuples(index=False), start=1):
             cells = [str(i), row.codigo_cp, f"{row.carga_kgf:.3f}", f"{row.area_cm2:.2f}",
                      f"{row.kn_cm2:.4f}", f"{row.mpa:.3f}"]
             for c, w in zip(cells, widths): pdf.cell(w, 6, c, border=1, align="C")
             pdf.ln()
-
         kn_list  = df["kn_cm2"].tolist(); mpa_list = df["mpa"].tolist()
         pdf.ln(4); pdf.set_font("Arial", "B", 11); pdf.cell(0, 6, "Resumo estatístico", ln=1)
         pdf.set_font("Arial", size=10)
@@ -241,15 +175,36 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
         pdf.cell(40, 6, "Média (MPa):");    pdf.cell(0, 6, _fmt(_media(mpa_list), 3), ln=1)
         pdf.cell(40, 6, "DP pop. (kN/cm²):"); pdf.cell(0, 6, _fmt(_dp(kn_list), 4), ln=1)
         pdf.cell(40, 6, "DP pop. (MPa):");    pdf.cell(0, 6, _fmt(_dp(mpa_list), 3), ln=1)
-
-        buf = io.BytesIO()
-        pdf_bytes = pdf.output(dest="S").encode("latin1")
-        buf.write(pdf_bytes); buf.seek(0)
-        return buf.read()
+        out = pdf.output(dest="S").encode("latin1")
+        return out
 
     raise RuntimeError("Sem backend de PDF disponível.")
 
-# ====================== Conversor rápido (kgf -> kN/cm² / MPa) ======================
+def build_html(obra, data_obra, area_cm2, df):
+    rows = "".join(
+        f"<tr><td>{i+1}</td><td>{r['codigo_cp']}</td><td>{r['carga_kgf']:.3f}</td>"
+        f"<td>{r['area_cm2']:.2f}</td><td>{r['kn_cm2']:.4f}</td><td>{r['mpa']:.3f}</td></tr>"
+        for i, r in df.iterrows()
+    )
+    html = f"""<!doctype html><html><head>
+<meta charset="utf-8">
+<title>Rupturas — {obra}</title>
+<style>
+body{{font-family:Arial,Helvetica,sans-serif;margin:24px}}
+table{{border-collapse:collapse;width:100%;margin-top:12px}}
+th,td{{border:1px solid #999;padding:6px;text-align:center}}
+thead th{{background:#f2f2f2}}
+</style></head><body>
+<h2>Rupturas de Argamassa — Lote</h2>
+<div>Obra: <b>{obra}</b> | Data: <b>{data_obra.strftime('%d/%m/%Y')}</b> | Área do CP: <b>{area_cm2:.2f} cm²</b></div>
+<table>
+<thead><tr><th>#</th><th>Código CP</th><th>Carga (kgf)</th><th>Área (cm²)</th><th>kN/cm²</th><th>MPa</th></tr></thead>
+<tbody>{rows}</tbody>
+</table>
+</body></html>"""
+    return html.encode("utf-8")
+
+# ====================== Conversor rápido ======================
 with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=False):
     colc, cola = st.columns([1,1])
     with colc:
@@ -279,8 +234,7 @@ with st.form("obra_form"):
         data_obra = st.date_input("Data", value=st.session_state.data_obra, format="DD/MM/YYYY")
     with col3:
         area_padrao = st.number_input("Área do CP (cm²)", min_value=0.0001, value=float(st.session_state.area_padrao), step=0.01, format="%.2f")
-    submitted_obra = st.form_submit_button("Aplicar dados da obra")
-    if submitted_obra:
+    if st.form_submit_button("Aplicar dados da obra"):
         st.session_state.obra = obra.strip()
         st.session_state.data_obra = data_obra
         st.session_state.area_padrao = float(area_padrao)
@@ -290,7 +244,7 @@ with st.form("obra_form"):
 qtd = len(st.session_state.registros)
 st.info(f"CPs no lote atual: **{qtd}/12**")
 
-# ====================== Lançamento CP (apenas kgf) ======================
+# ====================== Lançamento CP ======================
 disabled_add = (qtd >= 12) or (not st.session_state.obra)
 
 with st.form("cp_form", clear_on_submit=True):
@@ -301,9 +255,7 @@ with st.form("cp_form", clear_on_submit=True):
         _, _kn_prev, _mp_prev = tensoes_from_kgf(carga_kgf, st.session_state.area_padrao)
         st.caption(f"→ Conversões com área {st.session_state.area_padrao:.2f} cm²: "
                    f"**{_kn_prev:.5f} kN/cm²** • **{_mp_prev:.4f} MPa**")
-
-    add = st.form_submit_button("Adicionar CP ao lote", disabled=disabled_add)
-    if add:
+    if st.form_submit_button("Adicionar CP ao lote", disabled=disabled_add):
         if not st.session_state.obra:
             st.error("Defina os dados da obra antes de lançar CPs.")
         elif not codigo_cp.strip():
@@ -327,7 +279,6 @@ if st.session_state.registros:
     df = pd.DataFrame(st.session_state.registros)
     df_display = df[["codigo_cp","carga_kgf","area_cm2","kn_cm2","mpa"]].copy()
     df_display.columns = ["Código CP","Carga (kgf)","Área (cm²)","kN/cm²","MPa"]
-
     st.subheader("Lote atual — Tabela de CPs")
     st.dataframe(df_display, use_container_width=True)
 
@@ -335,7 +286,6 @@ if st.session_state.registros:
     with col_a: st.metric("Média (kN/cm²)", f"{mean(df['kn_cm2']):.4f}")
     with col_b: st.metric("Média (MPa)",    f"{mean(df['mpa']):.3f}")
 
-    # Gráfico de linhas (MPa por CP), eixo Y iniciando em 0
     st.subheader("Gráfico de ruptura (MPa por CP)")
     chart_df = pd.DataFrame({"Código CP": df["codigo_cp"].values, "MPa": df["mpa"].values})
     y_max = max(chart_df["MPa"]) * 1.15 if len(chart_df) else 1
@@ -350,7 +300,6 @@ if st.session_state.registros:
         .properties(height=320)
     )
     st.altair_chart(line, use_container_width=True)
-
     st.divider()
 
 # ====================== Ações de Lote ======================
@@ -361,49 +310,41 @@ with col1:
         st.session_state.lote_fechado = False
         st.session_state.pdf_bytes = None
         st.success("Lote limpo.")
-
 with col2:
     if st.session_state.registros:
         df_csv = pd.DataFrame(st.session_state.registros)
-        csv_bytes = df_csv.to_csv(index=False).encode("utf-8")
-        st.download_button("Baixar CSV", data=csv_bytes, file_name="rupturas_lote.csv", mime="text/csv")
-
+        st.download_button("Baixar CSV", data=df_csv.to_csv(index=False).encode("utf-8"),
+                           file_name="rupturas_lote.csv", mime="text/csv")
 with col3:
-    # Botão sempre aparece; desabilita se faltar backend/dados
     disable_pdf = (not st.session_state.registros) or (PDF_BACKEND == "none")
-    click_pdf = st.button("📄 Exportar para PDF", disabled=disable_pdf, type="primary")
-    if click_pdf:
+    if st.button("📄 Exportar para PDF", disabled=disable_pdf, type="primary"):
         try:
             df_pdf = pd.DataFrame(st.session_state.registros)
-            pdf_bytes = build_pdf(
-                st.session_state.obra,
-                st.session_state.data_obra,
-                st.session_state.area_padrao,
-                df_pdf
+            st.session_state.pdf_bytes = build_pdf(
+                st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao, df_pdf
             )
-            st.session_state.lote_fechado = True
-            st.session_state.pdf_bytes = pdf_bytes
-            st.success("PDF gerado! Use o botão abaixo para baixar.")
+            st.success("PDF gerado! Baixe abaixo.")
         except Exception as e:
             st.error(f"Falha ao gerar PDF: {e}")
 
-# Download do PDF
+# Download do PDF / Fallback HTML
 if st.session_state.get("pdf_bytes"):
     data_str = st.session_state.data_obra.strftime("%Y%m%d")
     safe_obra = "".join(c for c in st.session_state.obra if c.isalnum() or c in (" ","-","_")).strip().replace(" ","_")
     fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf"
-    st.download_button("⬇️ Baixar PDF do Lote", data=st.session_state.pdf_bytes, file_name=fname, mime="application/pdf")
+    st.download_button("⬇️ Baixar PDF do Lote", data=st.session_state.pdf_bytes,
+                       file_name=fname, mime="application/pdf")
+elif st.session_state.registros and PDF_BACKEND == "none":
+    # Fallback: exportar HTML imprimível
+    df_html = pd.DataFrame(st.session_state.registros)
+    html_bytes = build_html(st.session_state.obra, st.session_state.data_obra,
+                            st.session_state.area_padrao, df_html)
+    st.download_button("🖨️ Exportar HTML (imprimir em PDF)", data=html_bytes,
+                       file_name="rupturas_lote.html", mime="text/html")
 
-# Rodapé
+# Rodapé / diagnóstico
 st.caption(
     "Conversões: tensão [kgf/cm²] → kN/cm² (×0,00980665) e MPa (×0,0980665). "
-    + (f"PDF via {PDF_BACKEND}" if PDF_BACKEND != "none" else "PDF desativado (instale reportlab ou fpdf2).")
+    + (f"PDF via {PDF_BACKEND}" if PDF_BACKEND != "none" else "PDF desativado (instale fpdf2).")
 )
-# Indicador de status do PDF (diag. rápido)
 st.caption(f"Status do backend PDF: **{PDF_BACKEND}**")
-
-if PDF_BACKEND == "none":
-    st.warning("🔒 Exportar para PDF desativado: instale 'fpdf2>=2.7' no requirements.txt (raiz) e reinicie o app.")
-elif not st.session_state.registros:
-    st.info("ℹ️ Adicione pelo menos 1 CP para habilitar o botão de PDF.")
-
