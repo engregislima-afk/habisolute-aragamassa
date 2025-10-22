@@ -1,5 +1,7 @@
 # app.py — Rupturas de Argamassa (kgf → kN/cm² / MPa)
-# Tema preto/laranja (#d75413) e claro/laranja, gráfico de pontos, PDF com gráfico, logo e rodapé.
+# Tema preto/laranja (#d75413) e claro/laranja, gráfico de pontos,
+# PDF com gráfico (plotly+kaleido/fpdf2) e fallback HTML com gráfico SVG (sem dependências).
+
 from __future__ import annotations
 import io, os, subprocess, sys
 from datetime import date
@@ -8,18 +10,8 @@ from statistics import mean, pstdev
 import streamlit as st
 import pandas as pd
 import altair as alt
-import importlib.util
-def _diag():
-    ok_fpdf  = importlib.util.find_spec("fpdf") is not None
-    ok_plotly= importlib.util.find_spec("plotly") is not None
-    ok_kale  = importlib.util.find_spec("kaleido") is not None
-    st.caption(
-        f"Diag: fpdf2={'✅' if ok_fpdf else '❌'} • plotly={'✅' if ok_plotly else '❌'} • kaleido={'✅' if ok_kale else '❌'}"
-    )
-# chame assim em qualquer lugar:
-# _diag()
 
-# =================== PDF backends (ReportLab → FPDF2; tenta auto-instalar fpdf2) ===================
+# ============ PDF backends (ReportLab → FPDF2; tenta auto-instalar fpdf2) ============
 PDF_BACKEND = "none"  # "reportlab" | "fpdf2" | "none"
 
 def _try_import_pdfs():
@@ -40,7 +32,7 @@ def _try_import_pdfs():
 
 _try_import_pdfs()
 if PDF_BACKEND == "none":
-    # tenta instalar fpdf2 dinamicamente (no Cloud prefira requirements.txt)
+    # Tenta instalar fpdf2 dinamicamente (no Cloud prefira requirements.txt)
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "fpdf2>=2.7"])
         from fpdf import FPDF  # noqa: F401
@@ -82,15 +74,9 @@ with st.sidebar:
 # =================== Tema (Preto/Laranja e Claro/Laranja) ===================
 ACCENT = "#d75413"
 if st.session_state.theme == "Escuro":
-    SURFACE = "#0a0a0a"            # preto
-    CARD_BG = "#111213"
-    BORDER  = "rgba(255,255,255,0.10)"
-    TEXT    = "#f5f5f5"
+    SURFACE = "#0a0a0a"; CARD_BG = "#111213"; BORDER = "rgba(255,255,255,0.10)"; TEXT = "#f5f5f5"
 else:
-    SURFACE = "#fafafa"            # claro
-    CARD_BG = "#ffffff"
-    BORDER  = "rgba(0,0,0,0.10)"
-    TEXT    = "#111111"
+    SURFACE = "#fafafa"; CARD_BG = "#ffffff"; BORDER = "rgba(0,0,0,0.10)"; TEXT = "#111111"
 
 st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🧱", layout="centered")
 st.markdown(f"""
@@ -131,7 +117,7 @@ table td, table th {{ color: var(--text); }}
 
 # =================== Cabeçalho ===================
 st.markdown("<h1 style='margin:0'>Rupturas de Argamassa</h1>", unsafe_allow_html=True)
-st.caption("Entrada por CP: **carga de ruptura (kgf)**. Área por obra. Saídas: **kN/cm²** e **MPa**. Gráfico só com pontos e PDF com o mesmo gráfico.")
+st.caption("Entrada por CP: **carga de ruptura (kgf)**. Área por obra. Saídas: **kN/cm²** e **MPa**. Gráfico de pontos e PDF com o gráfico (se habilitado).")
 
 # =================== Conversões ===================
 KGF_CM2_TO_MPA    = 0.0980665
@@ -151,6 +137,7 @@ def _dp(lst):
 
 # =================== PNG do gráfico (Plotly + Kaleido) ===================
 def chart_png_from_df(df: pd.DataFrame) -> bytes | None:
+    """Gera PNG (apenas pontos) MPa por CP para PDF, usando Plotly+Kaleido."""
     if df.empty: return None
     try:
         import plotly.graph_objects as go
@@ -160,9 +147,10 @@ def chart_png_from_df(df: pd.DataFrame) -> bytes | None:
     codes = df["codigo_cp"].astype(str).tolist()
     mpa_vals = df["mpa"].tolist()
     fig = make_subplots(rows=1, cols=1)
-    fig.add_trace(go.Scatter(x=codes, y=mpa_vals, mode="markers", marker=dict(size=9, color=ACCENT), name="MPa"), row=1, col=1)
-    ymax = max(mpa_vals) * 1.15 if mpa_vals else 1
-    fig.update_yaxes(range=[0, ymax], title_text="MPa", row=1, col=1)
+    fig.add_trace(go.Scatter(x=codes, y=mpa_vals, mode="markers",
+                             marker=dict(size=9, color=ACCENT), name="MPa"), row=1, col=1)
+    y_max = max(mpa_vals) * 1.15 if mpa_vals else 1
+    fig.update_yaxes(range=[0, y_max], title_text="MPa", row=1, col=1)
     fig.update_xaxes(title_text="Código do CP", row=1, col=1)
     fig.update_layout(title_text="Gráfico de ruptura (MPa por CP)",
                       margin=dict(l=20,r=20,t=40,b=40), height=360,
@@ -171,6 +159,40 @@ def chart_png_from_df(df: pd.DataFrame) -> bytes | None:
         return fig.to_image(format="png", scale=2)  # requer kaleido
     except Exception:
         return None
+
+# =================== Gráfico SVG (fallback sem dependências) ===================
+def svg_scatter_from_df(df, width=900, height=360, margin=50):
+    """Gera um SVG simples (scatter MPa por CP) sem libs externas (para HTML)."""
+    if df.empty:
+        return "<svg width='1' height='1'></svg>"
+    codes = [str(x) for x in df["codigo_cp"].tolist()]
+    ys    = [float(x) for x in df["mpa"].tolist()]
+    y_max = max(ys) * 1.15 if ys else 1.0
+    y_min = 0.0
+    plot_w = width - margin*2
+    plot_h = height - margin*2
+    def x_pos(i, n): return margin + (plot_w * i / max(1, n-1))
+    def y_pos(y):    return margin + (plot_h * (1 - (y-y_min)/max(1e-9,(y_max-y_min))))
+    parts = [f"<svg width='{width}' height='{height}' xmlns='http://www.w3.org/2000/svg'>",
+             "<style> text{font-family:Arial,sans-serif;fill:#333;font-size:12px} .tick{stroke:#ddd} </style>",
+             f"<rect x='0' y='0' width='{width}' height='{height}' fill='white'/>"]
+    for k in range(6):
+        yk = y_min + (y_max - y_min) * k/5
+        ypix = y_pos(yk)
+        parts.append(f"<line x1='{margin}' y1='{ypix}' x2='{width-margin}' y2='{ypix}' class='tick'/>")
+        parts.append(f"<text x='{margin-8}' y='{ypix+4}' text-anchor='end'>{yk:.1f}</text>")
+    n = len(ys)
+    for i, y in enumerate(ys):
+        cx = x_pos(i, n); cy = y_pos(y)
+        parts.append(f"<circle cx='{cx}' cy='{cy}' r='5' fill='{ACCENT}' />")
+    for i, code in enumerate(codes):
+        cx = x_pos(i, n)
+        parts.append(f"<text x='{cx}' y='{height-margin+18}' text-anchor='middle' transform='rotate(90 {cx},{height-margin+18})'>{code}</text>")
+    parts.append(f"<text x='{width/2}' y='24' text-anchor='middle' font-size='18' font-weight='bold'>Gráfico de ruptura (MPa por CP)</text>")
+    parts.append(f"<text x='{width/2}' y='{height-8}' text-anchor='middle'>Código do CP</text>")
+    parts.append(f"<text x='18' y='{height/2}' transform='rotate(-90 18,{height/2})' text-anchor='middle'>MPa</text>")
+    parts.append("</svg>")
+    return "".join(parts)
 
 # =================== PDF ===================
 def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame,
@@ -291,6 +313,7 @@ with st.form("obra_form"):
 qtd = len(st.session_state.registros)
 st.info(f"CPs no lote atual: **{qtd}/12**")
 disabled_add = (qtd >= 12) or (not st.session_state.obra)
+
 with st.form("cp_form", clear_on_submit=True):
     st.subheader("Lançar ruptura (apenas carga em kgf)")
     codigo_cp = st.text_input("Código do CP", placeholder="Ex.: A039.258 / H682 / 037.421", max_chars=32)
@@ -317,7 +340,7 @@ with st.form("cp_form", clear_on_submit=True):
             })
             st.session_state.plot_png = None
 
-# =================== Tabela + Gráfico ===================
+# =================== Tabela + Gráfico (Altair) ===================
 if st.session_state.registros:
     df = pd.DataFrame(st.session_state.registros)
     df_display = df[["codigo_cp","carga_kgf","area_cm2","kn_cm2","mpa"]].copy()
@@ -346,11 +369,13 @@ if st.session_state.registros:
 
     st.divider()
 
-# =================== Ações (regera PNG no export) ===================
+# =================== Ações (gera PNG no export) ===================
 col1, col2, col3 = st.columns(3)
 with col1:
     if st.button("Limpar lote", disabled=(not st.session_state.registros)):
-        st.session_state.registros = []; st.session_state.pdf_bytes = None; st.session_state.plot_png = None
+        st.session_state.registros = []
+        st.session_state.pdf_bytes = None
+        st.session_state.plot_png = None
         st.success("Lote limpo.")
 
 with col2:
@@ -365,7 +390,7 @@ with col3:
     if click:
         try:
             df_pdf = pd.DataFrame(st.session_state.registros)
-            png_now = chart_png_from_df(df_pdf)  # gera PNG do gráfico na hora
+            png_now = chart_png_from_df(df_pdf)  # gera PNG do gráfico na hora (requer kaleido)
             st.session_state.plot_png = png_now
             st.session_state.pdf_bytes = build_pdf(
                 st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao,
@@ -378,20 +403,7 @@ with col3:
         except Exception as e:
             st.error(f"Falha ao gerar PDF: {e}")
 
-# =================== Download do PDF ou Fallback HTML (com gráfico) ===================
-def svg_scatter_from_df(df, width=900, height=360, margin=50):
-    """Gera um SVG simples (scatter MPa por CP) sem bibliotecas externas."""
-    if df.empty:
-        return "<svg width='1' height='1'></svg>"
-    codes = [str(x) for x in df["codigo_cp"].tolist()]
-    ys    = [float(x) for x in df["mpa"].tolist()]
-    y_max = max(ys) * 1.15 if ys else 1.0
-    y_min = 0.0
-
-    plot_w = width - margin*2
-    plot_h = height - margin*2
-
-    def x_pos(i, n)
+# =================== Download do PDF ou Fallback HTML (com gráfico SVG) ===================
 if st.session_state.get("pdf_bytes"):
     data_str = st.session_state.data_obra.strftime("%Y%m%d")
     safe_obra = "".join(c for c in st.session_state.obra if c.isalnum() or c in (" ","-","_")).strip().replace(" ","_")
@@ -400,24 +412,16 @@ if st.session_state.get("pdf_bytes"):
                        file_name=fname, mime="application/pdf")
 
 elif st.session_state.registros and PDF_BACKEND == "none":
-    import base64
+    # Fallback HTML imprimível **com gráfico SVG** (independe de kaleido/plotly)
     df_html = pd.DataFrame(st.session_state.registros)
-    png_now = chart_png_from_df(df_html)
+    svg_chart = svg_scatter_from_df(df_html)
 
-    def build_html(obra, data_obra, area_cm2, df, footer_text, chart_png):
+    def build_html(obra, data_obra, area_cm2, df, footer_text, svg_graph: str):
         rows = "".join(
             f"<tr><td>{i+1}</td><td>{r['codigo_cp']}</td><td>{r['carga_kgf']:.3f}</td>"
             f"<td>{r['area_cm2']:.2f}</td><td>{r['kn_cm2']:.4f}</td><td>{r['mpa']:.3f}</td></tr>"
             for i, r in df.iterrows()
         )
-        chart_html = ""
-        if chart_png:
-            b64 = base64.b64encode(chart_png).decode("ascii")
-            chart_html = f"""
-            <h3 style="margin-top:22px">Gráfico de ruptura (MPa por CP)</h3>
-            <img alt="Gráfico de ruptura" src="data:image/png;base64,{b64}"
-                 style="max-width:100%;height:auto;border:1px solid #ccc;border-radius:8px"/>
-            """
         html = f"""<!doctype html><html><head>
 <meta charset="utf-8"><title>Rupturas — {obra}</title>
 <style>
@@ -425,21 +429,31 @@ body{{font-family:Arial,Helvetica,sans-serif;margin:24px}}
 table{{border-collapse:collapse;width:100%;margin-top:12px}}
 th,td{{border:1px solid #999;padding:6px;text-align:center}}
 thead th{{background:#f2f2f2}}
+h2{{margin:0 0 8px}}
+section{{margin:16px 0}}
 </style></head><body>
 <h2>Rupturas de Argamassa — Lote</h2>
 <div>Obra: <b>{obra}</b> | Data: <b>{data_obra.strftime('%d/%m/%Y')}</b> | Área do CP: <b>{area_cm2:.2f} cm²</b></div>
+
+<section>
 <table>
 <thead><tr><th>#</th><th>Código CP</th><th>Carga (kgf)</th><th>Área (cm²)</th><th>kN/cm²</th><th>MPa</th></tr></thead>
 <tbody>{rows}</tbody>
 </table>
-{chart_html}
+</section>
+
+<section>
+{svg_graph}
+</section>
+
 {('<p>'+footer_text+'</p>') if footer_text.strip() else ''}
 </body></html>"""
         return html.encode("utf-8")
 
     html_bytes = build_html(
         st.session_state.obra, st.session_state.data_obra,
-        st.session_state.area_padrao, df_html, st.session_state.footer_text, png_now
+        st.session_state.area_padrao, df_html,
+        st.session_state.footer_text, svg_chart
     )
     st.download_button("🖨️ Exportar HTML (imprimir em PDF)", data=html_bytes,
                        file_name="rupturas_lote.html", mime="text/html")
