@@ -8,6 +8,16 @@ from statistics import mean, pstdev
 import streamlit as st
 import pandas as pd
 import altair as alt
+import importlib.util
+def _diag():
+    ok_fpdf  = importlib.util.find_spec("fpdf") is not None
+    ok_plotly= importlib.util.find_spec("plotly") is not None
+    ok_kale  = importlib.util.find_spec("kaleido") is not None
+    st.caption(
+        f"Diag: fpdf2={'✅' if ok_fpdf else '❌'} • plotly={'✅' if ok_plotly else '❌'} • kaleido={'✅' if ok_kale else '❌'}"
+    )
+# chame assim em qualquer lugar:
+# _diag()
 
 # =================== PDF backends (ReportLab → FPDF2; tenta auto-instalar fpdf2) ===================
 PDF_BACKEND = "none"  # "reportlab" | "fpdf2" | "none"
