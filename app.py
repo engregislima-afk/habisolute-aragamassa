@@ -1,4 +1,5 @@
-# app.py — Rupturas de Argamassa (kgf → kN/cm² / MPa) + gráfico (pontos) + PDF com gráfico
+# app.py — Rupturas de Argamassa (kgf → kN/cm² / MPa)
+# UI estilo Windows 11 + gráfico de pontos + PDF com gráfico (sem linhas)
 from __future__ import annotations
 import io
 from datetime import date
@@ -43,33 +44,77 @@ if PDF_BACKEND == "none":
     except Exception:
         PDF_BACKEND = "none"
 
-# ====================== Config & Estilo ======================
-HB_ORANGE = "#f97316"
-BG_CARD = "#141821"
-BORDER = "#2a3142"
+# ====================== Config & Estilo (Windows 11-like) ======================
+ACCENT = "#3B82F6"   # azul suave (accent)
+SURFACE = "#0b0f14"  # fundo
+CARD_BG = "rgba(255,255,255,0.06)"
+BORDER = "rgba(255,255,255,0.14)"
 
 st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🧱", layout="centered")
 st.markdown(f"""
 <style>
-:root {{ --brand:{HB_ORANGE}; }}
-html, body, [class*="block-container"] {{ background:#0f1116; color:#f5f5f5; }}
-h1, h2, h3, h4 {{ color:#fff; }}
-hr {{ border-color:{BORDER}; }}
-.stButton>button {{
-  background:var(--brand); color:#111; border:none; border-radius:12px;
-  padding:.6rem 1rem; font-weight:700; cursor:pointer;
+:root {{
+  --accent:{ACCENT};
+  --surface:{SURFACE};
+  --card:{CARD_BG};
+  --border:{BORDER};
 }}
-.stButton>button:disabled {{ opacity:.55; cursor:not-allowed; }}
-.stDownloadButton>button {{ background:#1f2533; color:#fff; border:1px solid {BORDER}; border-radius:12px; }}
-div[data-testid="stForm"] {{ border:1px solid {BORDER}; border-radius:14px; padding:1rem; background:{BG_CARD}; }}
-table td, table th {{ color:#eee; }}
-.kpi {{ display:flex; gap:12px; flex-wrap:wrap }}
-.kpi > div {{ background:{BG_CARD}; border:1px solid {BORDER}; border-radius:12px; padding:.75rem 1rem; }}
+html, body, [class*="block-container"] {{
+  background: var(--surface);
+  color: #f3f4f6;
+}}
+h1, h2, h3, h4 {{ color:#fff; letter-spacing:.2px }}
+hr {{ border-color: rgba(255,255,255,.07); }}
+
+.stButton>button {{
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  padding: .65rem 1rem;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(59,130,246,.28);
+}}
+.stButton>button:disabled {{
+  opacity:.55; cursor:not-allowed; box-shadow:none;
+}}
+
+.stDownloadButton>button {{
+  background: rgba(255,255,255,0.07);
+  color: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: .6rem 1rem;
+  box-shadow: 0 6px 16px rgba(0,0,0,.25);
+}}
+
+div[data-testid="stForm"] {{
+  background: var(--card);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 1rem 1rem .5rem;
+  box-shadow: 0 12px 30px rgba(0,0,0,.25);
+}}
+
+table td, table th {{ color:#e5e7eb; }}
+.kpi {{
+  display:flex; gap:12px; flex-wrap:wrap; margin: .25rem 0 .5rem 0;
+}}
+.kpi > div {{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: .75rem 1rem;
+  box-shadow: 0 6px 18px rgba(0,0,0,.22);
+}}
+
+.small-note {{ color:#9ca3af; font-size:.9rem; }}
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown("<h1>Rupturas de Argamassa</h1>", unsafe_allow_html=True)
-st.caption("Entrada por CP: **carga de ruptura (kgf)**. Área por obra. Saídas: **kN/cm²** e **MPa**. Gráfico com pontos e PDF com gráfico.")
+st.caption("Entrada por CP: **carga de ruptura (kgf)**. Área por obra. Saídas: **kN/cm²** e **MPa**. Gráfico somente com pontos e PDF com o mesmo gráfico.")
 
 # ====================== Conversões ======================
 KGF_CM2_TO_MPA    = 0.0980665
@@ -103,7 +148,7 @@ def _dp(lst):
 
 # ====================== Geração de PNG do gráfico (Plotly + Kaleido) ======================
 def chart_png_from_df(df: pd.DataFrame) -> bytes | None:
-    """Gera PNG (linha + pontos) MPa por CP para embutir no PDF, usando Plotly+Kaleido."""
+    """Gera PNG (somente pontos) MPa por CP para embutir no PDF, usando Plotly+Kaleido."""
     if df.empty:
         return None
     try:
@@ -117,15 +162,19 @@ def chart_png_from_df(df: pd.DataFrame) -> bytes | None:
 
     fig = make_subplots(rows=1, cols=1)
     fig.add_trace(
-        go.Scatter(x=codes, y=mpa_vals, mode="lines+markers", name="MPa"),
+        go.Scatter(x=codes, y=mpa_vals, mode="markers", marker=dict(size=9), name="MPa"),
         row=1, col=1
     )
     ymax = max(mpa_vals) * 1.15 if mpa_vals else 1
     fig.update_yaxes(range=[0, ymax], title_text="MPa", row=1, col=1)
     fig.update_xaxes(title_text="Código do CP", row=1, col=1)
-    fig.update_layout(title_text="Gráfico de ruptura (MPa por CP)",
-                      margin=dict(l=20, r=20, t=40, b=40),
-                      height=360)
+    fig.update_layout(
+        title_text="Gráfico de ruptura (MPa por CP)",
+        margin=dict(l=20, r=20, t=40, b=40),
+        height=360,
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+    )
 
     try:
         png_bytes = fig.to_image(format="png", scale=2)  # requer kaleido
@@ -157,13 +206,13 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame, cha
                                f"{row.kn_cm2:.4f}", f"{row.mpa:.3f}"])
         tbl = Table(data_table, repeatRows=1)
         tbl.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.HexColor(HB_ORANGE)),
-            ("TEXTCOLOR", (0,0), (-1,0), colors.black),
+            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#e5eefc")),
+            ("TEXTCOLOR", (0,0), (-1,0), colors.HexColor("#111111")),
             ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
             ("ALIGN", (0,0), (-1,0), "CENTER"),
             ("GRID", (0,0), (-1,-1), 0.4, colors.grey),
             ("ALIGN", (0,1), (-1,-1), "CENTER"),
-            ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.whitesmoke, colors.HexColor("#f2f2f2")]),
+            ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.whitesmoke, colors.HexColor("#f6f7fb")]),
         ]))
         elems = [title, Spacer(1,8), info, Spacer(1,12), tbl]
         if chart_png:
@@ -198,16 +247,13 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame, cha
             pdf.ln()
 
         if chart_png:
-            # fpdf2 precisa de um caminho; salvamos temporário
             path = "/tmp/chart_mpa.png"
             with open(path, "wb") as f: f.write(chart_png)
             pdf.ln(3)
             pdf.set_font("Arial", "B", 11); pdf.cell(0, 6, "Gráfico de ruptura (MPa por CP)", ln=1, align="L")
             pdf.image(path, x=None, y=None, w=180)
-            try:
-                os.remove(path)
-            except Exception:
-                pass
+            try: os.remove(path)
+            except Exception: pass
 
         return pdf.output(dest="S").encode("latin1")
 
@@ -284,7 +330,7 @@ with st.form("cp_form", clear_on_submit=True):
             })
             st.session_state.plot_png = None  # força re-gerar gráfico ao mostrar
 
-# ====================== Tabela + Gráfico ======================
+# ====================== Tabela + Gráfico (pontos) ======================
 if st.session_state.registros:
     df = pd.DataFrame(st.session_state.registros)
     df_display = df[["codigo_cp","carga_kgf","area_cm2","kn_cm2","mpa"]].copy()
@@ -300,17 +346,18 @@ if st.session_state.registros:
     st.subheader("Gráfico de ruptura (MPa por CP)")
     chart_df = pd.DataFrame({"Código CP": df["codigo_cp"].values, "MPa": df["mpa"].values})
     y_max = max(chart_df["MPa"]) * 1.15 if len(chart_df) else 1
-    line = (
+    # pontos apenas (Altair)
+    points = (
         alt.Chart(chart_df)
-        .mark_line(point=alt.OverlayMarkDef(filled=True, size=60))
+        .mark_point(size=90, filled=True)
         .encode(
             x=alt.X("Código CP:N", sort=None, title="Código do CP"),
             y=alt.Y("MPa:Q", scale=alt.Scale(domain=[0, y_max]), title="MPa"),
             tooltip=["Código CP", alt.Tooltip("MPa:Q", format=".3f")]
         )
-        .properties(height=320)
+        .properties(height=340)
     )
-    st.altair_chart(line, use_container_width=True)
+    st.altair_chart(points, use_container_width=True)
 
     # prepara PNG do gráfico p/ PDF (gera 1 vez por mudança)
     if st.session_state.plot_png is None:
