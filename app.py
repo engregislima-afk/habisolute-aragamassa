@@ -1,4 +1,4 @@
-# app.py — Rupturas de Argamassa (só entrada em kgf; saídas kN/cm² e MPa)
+# app.py — Rupturas de Argamassa (entrada só kgf; saídas kN/cm² e MPa)
 from __future__ import annotations
 import io
 from datetime import date
@@ -7,6 +7,7 @@ import subprocess, sys
 
 import streamlit as st
 import pandas as pd
+import altair as alt  # já vem com o Streamlit
 
 # ====== Backends de PDF (ReportLab -> FPDF2; instala fpdf2 se faltar) ======
 PDF_BACKEND = "none"  # "reportlab" | "fpdf2" | "none"
@@ -61,7 +62,7 @@ hr {{ border-color:#2a3142; }}
 """, unsafe_allow_html=True)
 
 st.markdown("<h1>Rupturas de Argamassa</h1>", unsafe_allow_html=True)
-st.caption("Entrada única: **carga de ruptura (kgf)**. Área do CP configurável por obra. Saídas: **kN/cm²** e **MPa**.")
+st.caption("Entrada única por CP: **carga de ruptura (kgf)**. Área do CP por obra. Saídas: **kN/cm²** e **MPa**.")
 
 # ====================== Constantes de conversão ======================
 KGF_CM2_TO_MPA    = 0.0980665     # tensão [kgf/cm²] → MPa
@@ -70,19 +71,16 @@ KGF_CM2_TO_KN_CM2 = 0.00980665    # tensão [kgf/cm²] → kN/cm²
 # ====================== Estado ======================
 if "obra" not in st.session_state: st.session_state.obra = ""
 if "data_obra" not in st.session_state: st.session_state.data_obra = date.today()
-if "area_padrao" not in st.session_state: st.session_state.area_padrao = 16.00  # cm² (p.ex. 4x4)
+if "area_padrao" not in st.session_state: st.session_state.area_padrao = 16.00  # cm²
 if "registros" not in st.session_state: st.session_state.registros = []
 if "lote_fechado" not in st.session_state: st.session_state.lote_fechado = False
 if "pdf_bytes" not in st.session_state: st.session_state.pdf_bytes = None
 
 # ====================== Helpers ======================
 def tensoes_from_kgf(carga_kgf: float, area_cm2: float):
-    """
-    Entrada: carga em kgf e área em cm².
-    Retorna: (kN/cm², MPa) — convertendo a tensão (kgf/cm²).
-    """
+    """Retorna (kgf/cm², kN/cm², MPa) a partir de carga (kgf) e área (cm²)."""
     if area_cm2 <= 0:
-        return None, None, None  # invalida
+        return None, None, None
     stress_kgf_cm2 = carga_kgf / area_cm2
     kn_cm2 = stress_kgf_cm2 * KGF_CM2_TO_KN_CM2
     mpa    = stress_kgf_cm2 * KGF_CM2_TO_MPA
@@ -98,10 +96,6 @@ def _dp(lst):
 
 # ====================== PDF Builder ======================
 def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> bytes:
-    """
-    Tabela: # | Código | Carga (kgf) | Área (cm²) | kN/cm² | MPa
-    Estatística: médias e DP de kN/cm² e MPa.
-    """
     if PDF_BACKEND == "reportlab":
         from reportlab.lib.pagesizes import A4
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -182,7 +176,6 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
             for c, w in zip(cells, widths): pdf.cell(w, 6, c, border=1, align="C")
             pdf.ln()
 
-        # Estatística
         kn_list  = df["kn_cm2"].tolist(); mpa_list = df["mpa"].tolist()
         pdf.ln(4); pdf.set_font("Arial", "B", 11); pdf.cell(0, 6, "Resumo estatístico", ln=1)
         pdf.set_font("Arial", size=10)
@@ -241,13 +234,12 @@ qtd = len(st.session_state.registros)
 st.info(f"CPs no lote atual: **{qtd}/12**")
 
 # ====================== Lançamento CP (apenas kgf) ======================
-disabled_add = (qtd >= 12) or st.session_state.lote_fechado or (not st.session_state.obra)
+disabled_add = (qtd >= 12) or (not st.session_state.obra)
 
 with st.form("cp_form", clear_on_submit=True):
     st.subheader("Lançar ruptura (apenas carga em kgf)")
     codigo_cp = st.text_input("Código do CP", placeholder="Ex.: A039.258 / H682 / 037.421", max_chars=32)
     carga_kgf  = st.number_input("Carga de ruptura (kgf)", min_value=0.0, step=0.1, format="%.3f")
-    # preview
     if carga_kgf and st.session_state.area_padrao:
         _, _kn_prev, _mp_prev = tensoes_from_kgf(carga_kgf, st.session_state.area_padrao)
         st.caption(f"→ Conversões com área {st.session_state.area_padrao:.2f} cm²: "
@@ -263,18 +255,15 @@ with st.form("cp_form", clear_on_submit=True):
             st.error("Informe uma carga em kgf maior que zero.")
         else:
             s_kgfcm2, s_kncm2, s_mpa = tensoes_from_kgf(carga_kgf, st.session_state.area_padrao)
-            if s_kncm2 is None:
-                st.error("Área inválida. Ajuste a área do CP nos dados da obra.")
-            else:
-                st.session_state.registros.append({
-                    "codigo_cp": codigo_cp.strip(),
-                    "carga_kgf": float(carga_kgf),
-                    "area_cm2": float(st.session_state.area_padrao),
-                    "kgf_cm2": float(s_kgfcm2),   # guardado mas não exibido
-                    "kn_cm2":  float(s_kncm2),
-                    "mpa":     float(s_mpa),
-                })
-                st.success("CP adicionado ao lote.")
+            st.session_state.registros.append({
+                "codigo_cp": codigo_cp.strip(),
+                "carga_kgf": float(carga_kgf),
+                "area_cm2": float(st.session_state.area_padrao),
+                "kgf_cm2": float(s_kgfcm2),  # guardado, não exibido
+                "kn_cm2":  float(s_kncm2),
+                "mpa":     float(s_mpa),
+            })
+            st.success("CP adicionado ao lote.")
 
 # ====================== Tabela + Gráfico ======================
 if st.session_state.registros:
@@ -285,15 +274,25 @@ if st.session_state.registros:
     st.subheader("Lote atual — Tabela de CPs")
     st.dataframe(df_display, use_container_width=True)
 
-    # KPIs (somente kN/cm² e MPa)
     col_a, col_b = st.columns(2)
     with col_a: st.metric("Média (kN/cm²)", f"{mean(df['kn_cm2']):.4f}")
     with col_b: st.metric("Média (MPa)",    f"{mean(df['mpa']):.3f}")
 
-    # Gráfico de ruptura (MPa por CP) — eixo inicia em 0
+    # Gráfico de linhas (MPa por CP), eixo Y iniciando em 0
     st.subheader("Gráfico de ruptura (MPa por CP)")
-    chart_df = pd.DataFrame({"MPa": df["mpa"].values}, index=df["codigo_cp"].values)
-    st.bar_chart(chart_df, height=320, use_container_width=True)
+    chart_df = pd.DataFrame({"Código CP": df["codigo_cp"].values, "MPa": df["mpa"].values})
+    y_max = max(chart_df["MPa"]) * 1.15 if len(chart_df) else 1
+    line = (
+        alt.Chart(chart_df)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("Código CP:N", sort=None, title="Código do CP"),
+            y=alt.Y("MPa:Q", scale=alt.Scale(domain=[0, y_max]), title="MPa"),
+            tooltip=["Código CP", alt.Tooltip("MPa:Q", format=".3f")]
+        )
+        .properties(height=320)
+    )
+    st.altair_chart(line, use_container_width=True)
 
     st.divider()
 
@@ -313,14 +312,21 @@ with col2:
         st.download_button("Baixar CSV", data=csv_bytes, file_name="rupturas_lote.csv", mime="text/csv")
 
 with col3:
-    can_finish = bool(st.session_state.registros) and (not st.session_state.lote_fechado) and (PDF_BACKEND != "none")
-    if st.button("📄 Exportar / Finalizar lote (PDF)", disabled=not can_finish, type="primary"):
+    # Botão sempre aparece; desabilita se faltar backend/dados
+    disable_pdf = (not st.session_state.registros) or (PDF_BACKEND == "none")
+    click_pdf = st.button("📄 Exportar para PDF", disabled=disable_pdf, type="primary")
+    if click_pdf:
         try:
             df_pdf = pd.DataFrame(st.session_state.registros)
-            pdf_bytes = build_pdf(st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao, df_pdf)
+            pdf_bytes = build_pdf(
+                st.session_state.obra,
+                st.session_state.data_obra,
+                st.session_state.area_padrao,
+                df_pdf
+            )
             st.session_state.lote_fechado = True
             st.session_state.pdf_bytes = pdf_bytes
-            st.success("Lote finalizado. Baixe o PDF abaixo.")
+            st.success("PDF gerado! Use o botão abaixo para baixar.")
         except Exception as e:
             st.error(f"Falha ao gerar PDF: {e}")
 
