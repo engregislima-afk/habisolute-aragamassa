@@ -1,7 +1,6 @@
 # app.py — Rupturas de Argamassa (kgf → kN/cm² / MPa)
-# PDF direto em 1 clique usando SOMENTE fpdf2 (gráfico desenhado no próprio PDF).
+# PDF direto em 1 clique usando SOMENTE fpdf2 (gráfico é desenhado no próprio PDF).
 from __future__ import annotations
-import io
 from datetime import date
 from statistics import mean, pstdev
 
@@ -9,14 +8,17 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 
-# ---------------- dependência obrigatória para PDF ----------------
+# ===================== Dependência obrigatória (PDF) =====================
 MISSING = []
 try:
     from fpdf import FPDF
+    _HAS_ROTATE = hasattr(FPDF, "rotate")  # algumas builds antigas não têm rotate()
 except Exception:
+    FPDF = None
+    _HAS_ROTATE = False
     MISSING.append("fpdf2>=2.7")
 
-# ---------------- tema (preto/laranja e claro/laranja) ----------------
+# ===================== Tema & Estado =====================
 ACCENT = "#d75413"
 st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🧱", layout="centered")
 
@@ -60,8 +62,12 @@ h1,h2,h3,h4{{color:var(--text)}}
   background:var(--accent); color:#111; border:none; border-radius:14px;
   padding:.65rem 1rem; font-weight:800; box-shadow:0 6px 16px rgba(215,84,19,.35);
 }}
-.stButton>button:disabled, .stDownloadButton>button:disabled {{ opacity:.55; cursor:not-allowed; box-shadow:none; }}
-div[data-testid="stForm"] {{ background:var(--card); border:1px solid var(--border); border-radius:18px; padding:1rem; }}
+.stButton>button:disabled, .stDownloadButton>button:disabled {{
+  opacity:.55; cursor:not-allowed; box-shadow:none;
+}}
+div[data-testid="stForm"] {{
+  background:var(--card); border:1px solid var(--border); border-radius:18px; padding:1rem;
+}}
 .kpi {{ display:flex; gap:12px; flex-wrap:wrap; }}
 .kpi>div {{ background:var(--card); border:1px solid var(--border); border-radius:14px; padding:.65rem 1rem; }}
 </style>
@@ -70,7 +76,7 @@ div[data-testid="stForm"] {{ background:var(--card); border:1px solid var(--bord
 st.markdown("<h1 style='margin:0'>Rupturas de Argamassa</h1>", unsafe_allow_html=True)
 st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
 
-# ---------------- conversões ----------------
+# ===================== Conversões =====================
 KGF_CM2_TO_MPA    = 0.0980665
 KGF_CM2_TO_KN_CM2 = 0.00980665
 def tensoes_from_kgf(carga_kgf: float, area_cm2: float):
@@ -83,7 +89,7 @@ def _dp(v):
     if len(v)==1: return 0.0
     return pstdev(v)
 
-# ---------------- conversor rápido ----------------
+# ===================== Conversor rápido =====================
 with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=False):
     c1,c2 = st.columns(2)
     kgf = c1.number_input("Carga (kgf)", min_value=0.0, value=0.0, step=0.1, format="%.3f")
@@ -91,24 +97,26 @@ with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=Fals
     if kgf and area_demo:
         _, kn, mp = tensoes_from_kgf(kgf, area_demo)
         st.markdown(
-            f"<div class='kpi'><div><b>kN/cm²</b><br>{kn:.5f}</div><div><b>MPa</b><br>{mp:.4f}</div></div>",
+            f"<div class='kpi'><div><b>kN/cm²</b><br>{kn:.5f}</div>"
+            f"<div><b>MPa</b><br>{mp:.4f}</div></div>",
             unsafe_allow_html=True
         )
 
-# ---------------- dados da obra ----------------
+# ===================== Dados da obra =====================
 with st.form("obra_form"):
     st.subheader("Dados da obra")
     a,b,c = st.columns([2,1,1])
     obra = a.text_input("Nome da obra", st.session_state.obra, placeholder="Ex.: Residencial Jardim Tropical")
     data_obra = b.date_input("Data", st.session_state.data_obra, format="DD/MM/YYYY")
-    area_padrao = c.number_input("Área do CP (cm²)", min_value=0.0001, value=float(st.session_state.area_padrao), step=0.01, format="%.2f")
+    area_padrao = c.number_input("Área do CP (cm²)", min_value=0.0001,
+                                 value=float(st.session_state.area_padrao), step=0.01, format="%.2f")
     if st.form_submit_button("Aplicar"):
         st.session_state.obra = obra.strip()
         st.session_state.data_obra = data_obra
         st.session_state.area_padrao = float(area_padrao)
         st.success("Dados aplicados.")
 
-# ---------------- lançar CP ----------------
+# ===================== Lançar CP =====================
 st.info(f"CPs no lote: **{len(st.session_state.registros)}/12**")
 with st.form("cp_form", clear_on_submit=True):
     st.subheader("Lançar ruptura (apenas kgf)")
@@ -116,7 +124,8 @@ with st.form("cp_form", clear_on_submit=True):
     carga  = st.number_input("Carga de ruptura (kgf)", min_value=0.0, step=0.1, format="%.3f")
     if carga and st.session_state.area_padrao:
         _, knp, mpp = tensoes_from_kgf(carga, st.session_state.area_padrao)
-        st.caption(f"→ Conversões (área {st.session_state.area_padrao:.2f} cm²): **{knp:.5f} kN/cm²** • **{mpp:.4f} MPa**")
+        st.caption(f"→ Conversões (área {st.session_state.area_padrao:.2f} cm²): "
+                   f"**{knp:.5f} kN/cm²** • **{mpp:.4f} MPa**")
     ok = st.form_submit_button("Adicionar CP", disabled=(len(st.session_state.registros)>=12 or not st.session_state.obra))
     if ok:
         if not st.session_state.obra: st.error("Preencha os dados da obra.")
@@ -134,7 +143,7 @@ with st.form("cp_form", clear_on_submit=True):
             })
             st.success("CP adicionado.")
 
-# ---------------- tabela + gráfico (Altair só para tela) ----------------
+# ===================== Tabela + Gráfico (tela) =====================
 if st.session_state.registros:
     df = pd.DataFrame(st.session_state.registros)
     view = df[["codigo_cp","carga_kgf","area_cm2","kn_cm2","mpa"]].copy()
@@ -161,45 +170,51 @@ if st.session_state.registros:
     st.altair_chart(points, use_container_width=True)
     st.divider()
 
-# ---------------- funções do PDF (apenas fpdf2) ----------------
+# ===================== PDF (fPdf2 desenhando o gráfico) =====================
 def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame, x: float, y: float, w: float, h: float, accent="#d75413"):
-    """Desenha o gráfico de pontos (MPa por CP) diretamente no PDF."""
-    # moldura
-    pdf.set_draw_color(220,220,220)
+    """Desenha o gráfico de pontos (MPa por CP) diretamente no PDF.
+       Se a build do fpdf2 não suportar rotate(), rótulos ficam horizontais."""
+    # moldura + grade
+    pdf.set_draw_color(220, 220, 220)
     pdf.rect(x, y, w, h)
 
-    # dados
     codes = df["codigo_cp"].astype(str).tolist()
     ys    = df["mpa"].astype(float).tolist()
     if not ys: return
+
     y_max = max(ys) * 1.15
     y_min = 0.0
 
-    # grade/ticks Y
     pdf.set_font("Arial", size=8)
     ticks = 5
-    for k in range(ticks+1):
+    for k in range(ticks + 1):
         yy = y + h - (h * k / ticks)
         val = y_min + (y_max - y_min) * k / ticks
-        pdf.line(x, yy, x+w, yy)
-        pdf.text(x-6, yy+2.2, f"{val:.1f}")
+        pdf.line(x, yy, x + w, yy)
+        pdf.text(x - 6, yy + 2.2, f"{val:.1f}")
 
     # pontos
-    r = int(accent[1:3],16); g = int(accent[3:5],16); b = int(accent[5:7],16)
-    pdf.set_fill_color(r,g,b)
+    r = int(accent[1:3], 16); g = int(accent[3:5], 16); b = int(accent[5:7], 16)
+    pdf.set_fill_color(r, g, b)
     n = len(ys)
     for i, val in enumerate(ys):
-        px = x + (w * (i / max(1, n-1)))
+        px = x + (w * (i / max(1, n - 1)))
         py = y + h - (h * (val - y_min) / max(1e-9, (y_max - y_min)))
-        pdf.ellipse(px-1.8, py-1.8, 3.6, 3.6, style="F")
-        # rótulo X rotacionado
-        pdf.rotate(90, px, y+h+8)
-        pdf.text(px, y+h+8, codes[i][:10])
-        pdf.rotate(0)
+        pdf.ellipse(px - 1.8, py - 1.8, 3.6, 3.6, style="F")
 
-    # títulos
+        label = codes[i][:10]
+        if _HAS_ROTATE:
+            try:
+                pdf.rotate(90, px, y + h + 8)
+                pdf.text(px, y + h + 8, label)
+                pdf.rotate(0)
+            except Exception:
+                pdf.text(px - (len(label)*1.2), y + h + 6, label)
+        else:
+            pdf.text(px - (len(label)*1.2), y + h + 6, label)
+
     pdf.set_font("Arial", "B", 11)
-    pdf.text(x, y-4, "Gráfico de ruptura (MPa por CP)")
+    pdf.text(x, y - 4, "Gráfico de ruptura (MPa por CP)")
     pdf.set_font("Arial", size=9)
     pdf.text(x + w/2 - 12, y + h + 12, "Código do CP")
 
@@ -210,13 +225,16 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float,
     # logo
     if logo_bytes:
         try:
-            p = "/tmp/_logo.png"; open(p,"wb").write(logo_bytes); pdf.image(p, x=10, y=10, w=35)
+            p = "/tmp/_logo.png"
+            with open(p, "wb") as f: f.write(logo_bytes)
+            pdf.image(p, x=10, y=10, w=35)
         except Exception:
             pass
     # título e info
     pdf.set_font("Arial","B",14); pdf.cell(0,7,"Rupturas de Argamassa — Lote",ln=1,align="C")
     pdf.set_font("Arial", size=11)
-    pdf.cell(0,6,f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²",ln=1,align="C")
+    pdf.cell(0,6,f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²",
+             ln=1,align="C")
     pdf.ln(3)
     # tabela
     hdr, wid = ["#","Código CP","Carga (kgf)","Área (cm²)","kN/cm²","MPa"], [8,52,28,22,28,24]
@@ -237,7 +255,7 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float,
         pdf.ln(3); pdf.set_font("Arial", size=9); pdf.multi_cell(0,5,footer_text.strip())
     return pdf.output(dest="S").encode("latin1")
 
-# ---------------- ações (1 clique = baixar) ----------------
+# ===================== Ações (1 clique = baixar) =====================
 c1,c2,c3 = st.columns(3)
 with c1:
     st.button("Limpar lote", disabled=(not st.session_state.registros),
@@ -269,7 +287,7 @@ with c3:
             fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf"
             st.download_button("📄 Exportar para PDF", data=pdf_bytes, file_name=fname, mime="application/pdf")
 
-# ---------------- rodapé diagnóstico ----------------
+# ===================== Rodapé diagnóstico =====================
 st.caption(
     ("PDF direto ativo ✅" if not MISSING else "PDF direto inativo ❌") +
     (" • Dependência faltando: " + ", ".join(MISSING) if MISSING else "") +
