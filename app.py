@@ -1,24 +1,46 @@
-# app.py — Rupturas de Argamassa (Habisolute) — conversões + gráfico + PDF (sem matplotlib)
+# app.py — Rupturas de Argamassa (Habisolute) — conversões + gráfico + PDF
 from __future__ import annotations
 import io
 from datetime import date
 from statistics import mean, pstdev
+import subprocess, sys
 
 import streamlit as st
 import pandas as pd
 
 # ====== Backends de PDF ======
 PDF_BACKEND = "none"  # "reportlab" | "fpdf2" | "none"
-try:
-    from reportlab.lib.pagesizes import A4
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.lib import colors
-    from reportlab.lib.styles import getSampleStyleSheet
-    PDF_BACKEND = "reportlab"
-except Exception:
+
+def _try_import_pdfs():
+    global PDF_BACKEND, A4, SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, colors, getSampleStyleSheet, FPDF
+    # 1) tenta ReportLab
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib import colors
+        from reportlab.lib.styles import getSampleStyleSheet
+        PDF_BACKEND = "reportlab"
+        return
+    except Exception:
+        pass
+    # 2) tenta FPDF2
     try:
         from fpdf import FPDF
         PDF_BACKEND = "fpdf2"
+        return
+    except Exception:
+        PDF_BACKEND = "none"
+
+_try_import_pdfs()
+
+# 3) Se nenhum disponível, instala fpdf2 on-the-fly e tenta de novo
+if PDF_BACKEND == "none":
+    try:
+        st.info("Instalando backend de PDF (fpdf2)...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "fpdf2>=2.7"])
+        from fpdf import FPDF
+        PDF_BACKEND = "fpdf2"
+        st.success("PDF habilitado com fpdf2.")
     except Exception:
         PDF_BACKEND = "none"
 
@@ -73,7 +95,7 @@ def _dp(lst):
     if len(lst) == 1: return 0.0
     return pstdev(lst)
 
-# ====================== PDF Builder (3 cenários) ======================
+# ====================== PDF Builder ======================
 def build_pdf(obra: str, data_obra: date, df: pd.DataFrame) -> bytes:
     if PDF_BACKEND == "reportlab":
         buffer = io.BytesIO()
@@ -90,8 +112,6 @@ def build_pdf(obra: str, data_obra: date, df: pd.DataFrame) -> bytes:
             area_txt = "" if row.modo == "kgf/cm²" else f"{row.area_cm2:.2f}"
             data_table.append([i, row.codigo_cp, row.modo, entrada_txt, area_txt,
                                f"{row.kgf_cm2:.3f}", f"{row.kn_cm2:.4f}", f"{row.mpa:.3f}"])
-        from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
-        from reportlab.lib import colors
         tbl = Table(data_table, repeatRows=1)
         tbl.setStyle(TableStyle([
             ("BACKGROUND", (0,0), (-1,0), colors.HexColor(HB_ORANGE)),
@@ -230,8 +250,7 @@ with st.form("cp_form", clear_on_submit=True):
     carga_kgf, area_cm2 = None, None
     if modo == "kgf/cm²":
         val_kgf_cm2 = st.number_input("Carga em kgf/cm²", min_value=0.0, step=0.01, format="%.3f")
-        # Conversões ao vivo
-        if val_kgf_cm2 is not None and val_kgf_cm2 > 0:
+        if val_kgf_cm2 and val_kgf_cm2 > 0:
             _kn = val_kgf_cm2 * KGF_CM2_TO_KN_CM2
             _mp = val_kgf_cm2 * KGF_CM2_TO_MPA
             st.caption(f"→ Conversões: **{val_kgf_cm2:.3f} kgf/cm²** = **{_kn:.5f} kN/cm²** = **{_mp:.4f} MPa**")
@@ -241,7 +260,6 @@ with st.form("cp_form", clear_on_submit=True):
             carga_kgf = st.number_input("Carga em kgf", min_value=0.0, step=0.1, format="%.3f")
         with cols[1]:
             area_cm2 = st.number_input("Área do CP (cm²)", min_value=0.0001, step=0.01, format="%.2f", value=16.00)
-        # Conversões ao vivo (se der pra calcular)
         if carga_kgf and area_cm2 and area_cm2 > 0:
             _kgfcm2 = carga_kgf/area_cm2
             _kn = _kgfcm2 * KGF_CM2_TO_KN_CM2
@@ -267,7 +285,7 @@ with st.form("cp_form", clear_on_submit=True):
                     "area_cm2": float(area_cm2) if modo == "kgf + área" else None,
                     "kgf_cm2": float(s_kgf_cm2),
                     "kn_cm2": float(s_kn_cm2),
-                    "mpa": float(s_mpa),
+                    "mpa": float(s_kgf_cm2 * KGF_CM2_TO_MPA),
                 })
                 st.success("CP adicionado ao lote.")
 
@@ -280,13 +298,12 @@ if st.session_state.registros:
     st.subheader("Lote atual — Tabela de CPs")
     st.dataframe(df_display, use_container_width=True)
 
-    # KPIs
     col_a, col_b, col_c = st.columns(3)
     with col_a: st.metric("Média (MPa)", f"{mean(df['mpa']):.3f}")
     with col_b: st.metric("Média (kgf/cm²)", f"{mean(df['kgf_cm2']):.3f}")
     with col_c: st.metric("Média (kN/cm²)", f"{mean(df['kn_cm2']):.4f}")
 
-    # Gráfico de ruptura (MPa por CP) com st.bar_chart (inicia em zero por padrão)
+    # Gráfico nativo (MPa por CP) — começa em 0
     st.subheader("Gráfico de ruptura (MPa por CP)")
     chart_df = pd.DataFrame({"MPa": df["mpa"].values}, index=df["codigo_cp"].values)
     st.bar_chart(chart_df, height=320, use_container_width=True)
