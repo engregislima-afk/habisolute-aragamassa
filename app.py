@@ -1,4 +1,12 @@
-# app.py — Rupturas de Argamassa (com ReportLab→FPDF2→Sem PDF)
+# app.py — Rupturas de Argamassa (Habisolute) — conversões + gráfico + PDF
+# ------------------------------------------------------------------------
+# • Até 12 CPs por lote / obra
+# • Entrada: (A) kgf/cm² direto OU (B) kgf + área (cm²)
+# • Saída automática: kN/cm² e MPa
+# • Conversor rápido (kgf/cm² → kN/cm² / MPa)
+# • Tabela dos CPs + métricas
+# • Gráfico de ruptura (0 → carga atingida em MPa, por CP)
+# • Exportar PDF (ReportLab; fallback FPDF2; se nenhum, mostra aviso)
 from __future__ import annotations
 import io
 from datetime import date
@@ -6,6 +14,7 @@ from statistics import mean, pstdev
 
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 
 # ====== Backends de PDF ======
 PDF_BACKEND = "none"  # "reportlab" | "fpdf2" | "none"
@@ -40,6 +49,8 @@ h1, h2, h3, h4 {{ color:#fff; }}
 div[data-testid="stForm"] {{ border:1px solid #2a3142; border-radius:14px; padding:1rem; background:#141821; }}
 table td, table th {{ color:#eee; }}
 hr {{ border-color:#2a3142; }}
+.kpi {{ display:flex; gap:12px; flex-wrap:wrap }}
+.kpi > div {{ background:#141821; border:1px solid #2a3142; border-radius:12px; padding:.75rem 1rem; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -47,8 +58,8 @@ st.markdown("<h1>Rupturas de Argamassa</h1>", unsafe_allow_html=True)
 st.caption("Conversões automáticas: **kgf/cm² → kN/cm²** e **kgf/cm² → MPa**. Também aceita **kgf + área (cm²)**.")
 
 # ====================== Helpers / Conversões ======================
-KGF_CM2_TO_MPA = 0.0980665
-KGF_CM2_TO_KN_CM2 = 0.00980665
+KGF_CM2_TO_MPA = 0.0980665       # 1 kgf/cm² = 0,0980665 MPa
+KGF_CM2_TO_KN_CM2 = 0.00980665   # 1 kgf/cm² = 0,00980665 kN/cm²
 
 def stress_from_inputs(mode:str, val_kgf_cm2:float|None, carga_kgf:float|None, area_cm2:float|None):
     if mode == "kgf/cm²":
@@ -170,6 +181,24 @@ if "registros" not in st.session_state: st.session_state.registros = []
 if "lote_fechado" not in st.session_state: st.session_state.lote_fechado = False
 if "pdf_bytes" not in st.session_state: st.session_state.pdf_bytes = None
 
+# ====================== Conversor rápido ======================
+with st.expander("🔁 Conversor rápido (kgf/cm² → kN/cm² / MPa)", expanded=False):
+    v = st.number_input("Valor em kgf/cm²", min_value=0.0, value=0.0, step=0.01, format="%.3f")
+    kn_cm2 = v * KGF_CM2_TO_KN_CM2
+    mpa    = v * KGF_CM2_TO_MPA
+    st.markdown(
+        f"""
+        <div class="kpi">
+          <div><b>Entrada</b><br>{v:.3f} kgf/cm²</div>
+          <div><b>kN/cm²</b><br>{kn_cm2:.5f}</div>
+          <div><b>MPa</b><br>{mpa:.4f}</div>
+        </div>
+        <br>
+        <small>Fórmulas: kN/cm² = kgf/cm² × 0,00980665 • MPa = kgf/cm² × 0,0980665</small>
+        """,
+        unsafe_allow_html=True
+    )
+
 # Aviso se estiver sem backend de PDF
 if PDF_BACKEND == "none":
     st.warning(
@@ -208,12 +237,23 @@ with st.form("cp_form", clear_on_submit=True):
     carga_kgf, area_cm2 = None, None
     if modo == "kgf/cm²":
         val_kgf_cm2 = st.number_input("Carga em kgf/cm²", min_value=0.0, step=0.01, format="%.3f")
+        # Mostrar conversões ao vivo
+        if val_kgf_cm2 is not None and val_kgf_cm2 > 0:
+            _kn = val_kgf_cm2 * KGF_CM2_TO_KN_CM2
+            _mp = val_kgf_cm2 * KGF_CM2_TO_MPA
+            st.caption(f"→ Conversões: **{val_kgf_cm2:.3f} kgf/cm²** = **{_kn:.5f} kN/cm²** = **{_mp:.4f} MPa**")
     else:
         cols = st.columns(2)
         with cols[0]:
             carga_kgf = st.number_input("Carga em kgf", min_value=0.0, step=0.1, format="%.3f")
         with cols[1]:
             area_cm2 = st.number_input("Área do CP (cm²)", min_value=0.0001, step=0.01, format="%.2f", value=16.00)
+        # Conversões ao vivo (se der pra calcular)
+        if carga_kgf and area_cm2 and area_cm2 > 0:
+            _kgfcm2 = carga_kgf/area_cm2
+            _kn = _kgfcm2 * KGF_CM2_TO_KN_CM2
+            _mp = _kgfcm2 * KGF_CM2_TO_MPA
+            st.caption(f"→ Conversões: **{_kgfcm2:.3f} kgf/cm²** = **{_kn:.5f} kN/cm²** = **{_mp:.4f} MPa**")
 
     add = st.form_submit_button("Adicionar CP ao lote", disabled=disabled_add)
     if add:
@@ -238,18 +278,34 @@ with st.form("cp_form", clear_on_submit=True):
                 })
                 st.success("CP adicionado ao lote.")
 
-# ====================== Tabela ======================
+# ====================== Tabela + Gráfico ======================
 if st.session_state.registros:
     df = pd.DataFrame(st.session_state.registros)
     df_display = df[["codigo_cp","modo","carga_kgf_cm2","carga_kgf","area_cm2","kgf_cm2","kn_cm2","mpa"]].copy()
     df_display.columns = ["Código CP","Modo","Carga (kgf/cm²)","Carga (kgf)","Área (cm²)","kgf/cm²","kN/cm²","MPa"]
-    st.subheader("Lote atual")
+
+    st.subheader("Lote atual — Tabela de CPs")
     st.dataframe(df_display, use_container_width=True)
 
+    # KPIs rápidas
     col_a, col_b, col_c = st.columns(3)
     with col_a: st.metric("Média (MPa)", f"{mean(df['mpa']):.3f}")
     with col_b: st.metric("Média (kgf/cm²)", f"{mean(df['kgf_cm2']):.3f}")
     with col_c: st.metric("Média (kN/cm²)", f"{mean(df['kn_cm2']):.4f}")
+
+    # Gráfico de ruptura (MPa por CP), eixo inicia em 0
+    st.subheader("Gráfico de ruptura (MPa por CP)")
+    fig, ax = plt.subplots(figsize=(8, 4))
+    codes = df["codigo_cp"].tolist()
+    mpa_vals = df["mpa"].tolist()
+    ax.bar(codes, mpa_vals)  # barras simples
+    ax.set_ylabel("MPa")
+    ax.set_xlabel("Código do CP")
+    ax.set_title("Rupturas (MPa)")
+    ax.set_ylim(bottom=0, top=max(mpa_vals)*1.15 if mpa_vals else 1)  # começa em 0 e vai até a carga atingida (com folga)
+    plt.xticks(rotation=45, ha="right")
+    st.pyplot(fig, clear_figure=True)
+
     st.divider()
 
 # ====================== Ações de Lote ======================
@@ -260,14 +316,17 @@ with col1:
         st.session_state.lote_fechado = False
         st.session_state.pdf_bytes = None
         st.success("Lote limpo.")
+
 with col2:
     if st.session_state.registros:
         df_csv = pd.DataFrame(st.session_state.registros)
         csv_bytes = df_csv.to_csv(index=False).encode("utf-8")
         st.download_button("Baixar CSV", data=csv_bytes, file_name="rupturas_lote.csv", mime="text/csv")
+
 with col3:
     can_finish = bool(st.session_state.registros) and (not st.session_state.lote_fechado) and (PDF_BACKEND != "none")
-    if st.button("Finalizar lote e gerar PDF", disabled=not can_finish, type="primary"):
+    # Botão Exportar para PDF
+    if st.button("📄 Exportar / Finalizar lote (PDF)", disabled=not can_finish, type="primary"):
         try:
             df_pdf = pd.DataFrame(st.session_state.registros)
             pdf_bytes = build_pdf(st.session_state.obra, st.session_state.data_obra, df_pdf)
@@ -282,7 +341,7 @@ if st.session_state.get("pdf_bytes"):
     data_str = st.session_state.data_obra.strftime("%Y%m%d")
     safe_obra = "".join(c for c in st.session_state.obra if c.isalnum() or c in (" ","-","_")).strip().replace(" ","_")
     fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf"
-    st.download_button("📄 Baixar PDF do Lote", data=st.session_state.pdf_bytes, file_name=fname, mime="application/pdf")
+    st.download_button("⬇️ Baixar PDF do Lote", data=st.session_state.pdf_bytes, file_name=fname, mime="application/pdf")
 
 # Rodapé
 st.caption(
