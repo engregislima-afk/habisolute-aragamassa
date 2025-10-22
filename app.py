@@ -342,3 +342,11 @@ st.caption(
     "Conversões: tensão [kgf/cm²] → kN/cm² (×0,00980665) e MPa (×0,0980665). "
     + (f"PDF via {PDF_BACKEND}" if PDF_BACKEND != "none" else "PDF desativado (instale reportlab ou fpdf2).")
 )
+# Indicador de status do PDF (diag. rápido)
+st.caption(f"Status do backend PDF: **{PDF_BACKEND}**")
+
+if PDF_BACKEND == "none":
+    st.warning("🔒 Exportar para PDF desativado: instale 'fpdf2>=2.7' no requirements.txt (raiz) e reinicie o app.")
+elif not st.session_state.registros:
+    st.info("ℹ️ Adicione pelo menos 1 CP para habilitar o botão de PDF.")
+
