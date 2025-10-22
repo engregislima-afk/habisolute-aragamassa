@@ -1,12 +1,4 @@
-# app.py — Rupturas de Argamassa (Habisolute) — conversões + gráfico + PDF
-# ------------------------------------------------------------------------
-# • Até 12 CPs por lote / obra
-# • Entrada: (A) kgf/cm² direto OU (B) kgf + área (cm²)
-# • Saída automática: kN/cm² e MPa
-# • Conversor rápido (kgf/cm² → kN/cm² / MPa)
-# • Tabela dos CPs + métricas
-# • Gráfico de ruptura (0 → carga atingida em MPa, por CP)
-# • Exportar PDF (ReportLab; fallback FPDF2; se nenhum, mostra aviso)
+# app.py — Rupturas de Argamassa (Habisolute) — conversões + gráfico + PDF (sem matplotlib)
 from __future__ import annotations
 import io
 from datetime import date
@@ -14,7 +6,6 @@ from statistics import mean, pstdev
 
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 
 # ====== Backends de PDF ======
 PDF_BACKEND = "none"  # "reportlab" | "fpdf2" | "none"
@@ -99,6 +90,8 @@ def build_pdf(obra: str, data_obra: date, df: pd.DataFrame) -> bytes:
             area_txt = "" if row.modo == "kgf/cm²" else f"{row.area_cm2:.2f}"
             data_table.append([i, row.codigo_cp, row.modo, entrada_txt, area_txt,
                                f"{row.kgf_cm2:.3f}", f"{row.kn_cm2:.4f}", f"{row.mpa:.3f}"])
+        from reportlab.platypus import Table, TableStyle, Spacer, Paragraph
+        from reportlab.lib import colors
         tbl = Table(data_table, repeatRows=1)
         tbl.setStyle(TableStyle([
             ("BACKGROUND", (0,0), (-1,0), colors.HexColor(HB_ORANGE)),
@@ -237,7 +230,7 @@ with st.form("cp_form", clear_on_submit=True):
     carga_kgf, area_cm2 = None, None
     if modo == "kgf/cm²":
         val_kgf_cm2 = st.number_input("Carga em kgf/cm²", min_value=0.0, step=0.01, format="%.3f")
-        # Mostrar conversões ao vivo
+        # Conversões ao vivo
         if val_kgf_cm2 is not None and val_kgf_cm2 > 0:
             _kn = val_kgf_cm2 * KGF_CM2_TO_KN_CM2
             _mp = val_kgf_cm2 * KGF_CM2_TO_MPA
@@ -287,24 +280,16 @@ if st.session_state.registros:
     st.subheader("Lote atual — Tabela de CPs")
     st.dataframe(df_display, use_container_width=True)
 
-    # KPIs rápidas
+    # KPIs
     col_a, col_b, col_c = st.columns(3)
     with col_a: st.metric("Média (MPa)", f"{mean(df['mpa']):.3f}")
     with col_b: st.metric("Média (kgf/cm²)", f"{mean(df['kgf_cm2']):.3f}")
     with col_c: st.metric("Média (kN/cm²)", f"{mean(df['kn_cm2']):.4f}")
 
-    # Gráfico de ruptura (MPa por CP), eixo inicia em 0
+    # Gráfico de ruptura (MPa por CP) com st.bar_chart (inicia em zero por padrão)
     st.subheader("Gráfico de ruptura (MPa por CP)")
-    fig, ax = plt.subplots(figsize=(8, 4))
-    codes = df["codigo_cp"].tolist()
-    mpa_vals = df["mpa"].tolist()
-    ax.bar(codes, mpa_vals)  # barras simples
-    ax.set_ylabel("MPa")
-    ax.set_xlabel("Código do CP")
-    ax.set_title("Rupturas (MPa)")
-    ax.set_ylim(bottom=0, top=max(mpa_vals)*1.15 if mpa_vals else 1)  # começa em 0 e vai até a carga atingida (com folga)
-    plt.xticks(rotation=45, ha="right")
-    st.pyplot(fig, clear_figure=True)
+    chart_df = pd.DataFrame({"MPa": df["mpa"].values}, index=df["codigo_cp"].values)
+    st.bar_chart(chart_df, height=320, use_container_width=True)
 
     st.divider()
 
@@ -325,7 +310,6 @@ with col2:
 
 with col3:
     can_finish = bool(st.session_state.registros) and (not st.session_state.lote_fechado) and (PDF_BACKEND != "none")
-    # Botão Exportar para PDF
     if st.button("📄 Exportar / Finalizar lote (PDF)", disabled=not can_finish, type="primary"):
         try:
             df_pdf = pd.DataFrame(st.session_state.registros)
