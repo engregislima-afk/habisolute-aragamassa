@@ -22,7 +22,7 @@ except Exception:
 
 # ===================== Tema & Estado =====================
 ACCENT = "#d75413"
-st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🧱", layout="centered")
+st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🏗️", layout="centered")
 
 if "theme" not in st.session_state: st.session_state.theme = "Escuro"
 if "obra" not in st.session_state: st.session_state.obra = ""
@@ -80,7 +80,7 @@ input, textarea, select {{ color: var(--text) !important; background: var(--card
 
 # ===== Título principal em laranja
 st.markdown(
-    f"<h1 style='margin:0;color:{ACCENT}'>Sistema de Rupturas de Argamassa Habisolute</h1>",
+    f"<h1 style='margin:0;color:{ACCENT}'>🏗️Sistema de Rupturas de Argamassa Habisolute</h1>",
     unsafe_allow_html=True
 )
 st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
@@ -322,7 +322,7 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
     pdf.set_auto_page_break(auto=False)
     pdf.set_y(-15)
     pdf.set_font("Arial", "I", 9)
-    pdf.cell(0, 6, _latin1_safe("SISTEMA DESENVOLVIDO PELA HABISOLUTE ENGENHARIA"), align="C")
+    pdf.cell(0, 6, _latin1_safe("Sistema desenvolvido pela Habisolute Engenharia"), align="C")
     pdf.set_auto_page_break(auto=prev_apb, margin=18)
 
     return _as_bytes(pdf)
