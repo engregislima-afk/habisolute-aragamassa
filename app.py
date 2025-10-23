@@ -349,7 +349,7 @@ def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame,
 
         # --- rótulos dos CPs (descolados da linha do eixo) ---
         label = _latin1_safe(codes[i][:14])
-        dx = 3.0    # <<< ajuste lateral: aumenta para afastar mais do eixo
+        dx = 5.0    # <<< ajuste lateral: aumenta para afastar mais do eixo
         if _HAS_ROTATE:
             try:
                 pdf.rotate(90, px + dx, y + h + 16)    # pivot também deslocado
