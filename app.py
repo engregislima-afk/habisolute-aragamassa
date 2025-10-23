@@ -1,23 +1,20 @@
 # app.py — Rupturas de Argamassa (kgf → kN/cm² / MPa)
-# PDF direto em 1 clique usando SOMENTE fpdf2 (gráfico desenhado no PDF).
 from __future__ import annotations
 from datetime import date
 from statistics import mean, pstdev
-import unicodedata
-import re
-import base64
-import secrets
+import unicodedata, re, base64, secrets
 from io import BytesIO
 
 import streamlit as st
 import pandas as pd
 import altair as alt
+import streamlit.components.v1 as components
 
 # ===================== Dependência obrigatória (PDF) =====================
 MISSING = []
 try:
     from fpdf import FPDF
-    _HAS_ROTATE = hasattr(FPDF, "rotate")  # algumas builds antigas não têm rotate()
+    _HAS_ROTATE = hasattr(FPDF, "rotate")
 except Exception:
     FPDF = None
     _HAS_ROTATE = False
@@ -33,30 +30,38 @@ if "data_obra" not in st.session_state: st.session_state.data_obra = date.today(
 if "area_padrao" not in st.session_state: st.session_state.area_padrao = 16.00
 if "registros" not in st.session_state: st.session_state.registros = []
 
+# ===== Sidebar (título e textos em laranja)
 with st.sidebar:
-    st.header("Preferências")
+    st.markdown(f"<h2 style='margin-top:0;color:{ACCENT}'>Preferências</h2>", unsafe_allow_html=True)
     st.session_state.theme = st.radio(
         "Tema", ["Escuro", "Claro"],
         horizontal=True,
         index=0 if st.session_state.theme == "Escuro" else 1
     )
 
-# Paleta por tema (alto contraste)
 SURFACE, CARD, BORDER, TEXT = (
-    ("#0a0a0a", "#111213", "rgba(255,255,255,0.10)", "#f5f5f5")  # Escuro
+    ("#0a0a0a", "#111213", "rgba(255,255,255,0.10)", "#f5f5f5")
     if st.session_state.theme == "Escuro"
-    else ("#ffffff", "#fafafa", "rgba(0,0,0,0.12)", "#111111")    # Claro
+    else ("#ffffff", "#fafafa", "rgba(0,0,0,0.12)", "#111111")
 )
 
 # ===================== CSS global =====================
 st.markdown(f"""
 <style>
-:root {{
-  --accent:{ACCENT}; --surface:{SURFACE}; --card:{CARD}; --border:{BORDER}; --text:{TEXT};
-}}
+:root {{ --accent:{ACCENT}; --surface:{SURFACE}; --card:{CARD}; --border:{BORDER}; --text:{TEXT}; }}
 html, body, [class*="block-container"] {{ background: var(--surface) !important; color: var(--text) !important; }}
 h1,h2,h3,h4, label, legend, .stMarkdown p {{ color: var(--text) !important; }}
-div[data-testid="stSidebar"] {{ background: var(--surface) !important; color: var(--text) !important; border-right: 1px solid var(--border); }}
+
+div[data-testid="stSidebar"] {{
+  background: var(--surface) !important; border-right: 1px solid var(--border);
+}}
+div[data-testid="stSidebar"] h1, div[data-testid="stSidebar"] h2,
+div[data-testid="stSidebar"] h3, div[data-testid="stSidebar"] h4,
+div[data-testid="stSidebar"] p, div[data-testid="stSidebar"] label,
+div[data-testid="stSidebar"] .stMarkdown,
+div[data-testid="stSidebar"] [data-baseweb="radio"] *,
+div[data-testid="stSidebar"] .stRadio label {{ color: {ACCENT} !important; }}
+
 div[data-testid="stForm"] {{ background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 1rem; }}
 .stButton>button, .stDownloadButton>button {{
   background: var(--accent); color:#111 !important; border:none; border-radius:14px;
@@ -65,7 +70,6 @@ div[data-testid="stForm"] {{ background: var(--card); border: 1px solid var(--bo
 .stButton>button:disabled, .stDownloadButton>button:disabled {{ opacity:.55; cursor:not-allowed; box-shadow:none; }}
 input, textarea, select {{ color: var(--text) !important; background: var(--card) !important; border-color: var(--border) !important; }}
 ::placeholder {{ color: color-mix(in oklab, var(--text), transparent 50%); }}
-input[disabled], textarea[disabled] {{ opacity:.85; color: color-mix(in oklab, var(--text), white 25%) !important; }}
 [data-testid="stDataFrame"] thead th, [data-testid="stDataFrame"] tbody td {{ color: var(--text) !important; }}
 [data-testid="stDataFrame"] tbody tr {{ background: var(--card) !important; }}
 .kpi {{ display:flex; gap:12px; flex-wrap:wrap; }}
@@ -74,7 +78,11 @@ input[disabled], textarea[disabled] {{ opacity:.85; color: color-mix(in oklab, v
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='margin:0'>Rupturas de Argamassa</h1>", unsafe_allow_html=True)
+# ===== Título principal em laranja
+st.markdown(
+    f"<h1 style='margin:0;color:{ACCENT}'>Sistema de Rupturas de Argamassa Habisolute</h1>",
+    unsafe_allow_html=True
+)
 st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
 
 # ===================== Conversões e helpers =====================
@@ -107,8 +115,7 @@ def _safe_filename(s: str) -> str:
 
 def _as_bytes(pdf_obj) -> bytes:
     out = pdf_obj.output(dest="S")
-    if isinstance(out, bytes): return out
-    if isinstance(out, bytearray): return bytes(out)
+    if isinstance(out, (bytes, bytearray)): return bytes(out)
     return out.encode("latin1", errors="ignore")
 
 def _hex_to_rgb(hexstr: str):
@@ -116,7 +123,6 @@ def _hex_to_rgb(hexstr: str):
     return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
 
 def _gen_report_id(dt: date) -> str:
-    """ID legível: AAAAMMDD + 6 hex aleatórios (maiúsculos)."""
     return f"{dt.strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}"
 
 # ===================== Conversor rápido =====================
@@ -127,8 +133,7 @@ with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=Fals
     if kgf and area_demo:
         _, kn, mp = tensoes_from_kgf(kgf, area_demo)
         st.markdown(
-            f"<div class='kpi'><div><b>kN/cm²</b><br>{kn:.5f}</div>"
-            f"<div><b>MPa</b><br>{mp:.4f}</div></div>",
+            f"<div class='kpi'><div><b>kN/cm²</b><br>{kn:.5f}</div><div><b>MPa</b><br>{mp:.4f}</div></div>",
             unsafe_allow_html=True
         )
 
@@ -138,10 +143,9 @@ with st.form("obra_form"):
     a,b,c = st.columns([2,1,1])
     obra = a.text_input("Nome da obra", st.session_state.obra, placeholder="Ex.: Residencial Jardim Tropical")
     data_obra = b.date_input("Data", st.session_state.data_obra, format="DD/MM/YYYY")
-    area_padrao = c.number_input("Área do CP (cm²)", min_value=0.0001,
-                                 value=float(st.session_state.area_padrao), step=0.01, format="%.2f")
+    area_padrao = c.number_input("Área do CP (cm²)", min_value=0.0001, value=float(st.session_state.area_padrao), step=0.01, format="%.2f")
     col = st.columns([1,1,2])
-    apply_clicked = col[0].form_submit_button("Aplicar")
+    apply_clicked  = col[0].form_submit_button("Aplicar")
     recalc_clicked = col[1].form_submit_button("Recalcular lote com nova área", disabled=(not st.session_state.registros))
     if apply_clicked:
         st.session_state.obra = obra.strip()
@@ -190,8 +194,7 @@ if st.session_state.registros:
     st.subheader("Lote atual (editável)")
     edited = st.data_editor(
         df[["codigo_cp","carga_kgf","area_cm2","kn_cm2","mpa"]],
-        use_container_width=True,
-        num_rows="fixed",
+        use_container_width=True, num_rows="fixed",
         column_config={
             "codigo_cp": st.column_config.TextColumn("Código CP"),
             "carga_kgf": st.column_config.NumberColumn("Carga (kgf)", step=0.1, format="%.3f"),
@@ -249,130 +252,77 @@ if st.session_state.registros:
     st.divider()
 
 # ===================== PDF (fpdf2 desenhando o gráfico) =====================
-def draw_scatter_on_pdf(
-    pdf: "FPDF",
-    df: pd.DataFrame,
-    x: float,
-    y: float,
-    w: float,
-    h: float,
-    accent: str | None = None,
-) -> None:
-    """Desenha o gráfico (MPa por CP) no PDF com espaçamentos ajustados e rótulos centralizados."""
+def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame, x: float, y: float, w: float, h: float, accent: str | None = None) -> None:
     accent_hex = (accent or ACCENT)
-
-    # Moldura + grade
-    pdf.set_draw_color(220, 220, 220)
-    pdf.rect(x, y, w, h)
+    pdf.set_draw_color(220, 220, 220); pdf.rect(x, y, w, h)
 
     codes = df["codigo_cp"].astype(str).tolist()
     ys = df["mpa"].astype(float).tolist()
-    if not ys:
-        return
+    if not ys: return
 
-    y_max = max(ys) * 1.15
-    y_min = 0.0
+    y_max = max(ys) * 1.15; y_min = 0.0
 
-    # Eixo Y (linhas de grade + ticks)
-    pdf.set_font("Arial", size=8)
-    ticks = 5
+    pdf.set_font("Arial", size=8); ticks = 5
     for k in range(ticks + 1):
-        yy = y + h - (h * k / ticks)
-        val = y_min + (y_max - y_min) * k / ticks
-        pdf.line(x, yy, x + w, yy)
-        pdf.text(x - 7.5, yy + 2.2, f"{val:.1f}")
+        yy = y + h - (h * k / ticks); val = y_min + (y_max - y_min) * k / ticks
+        pdf.line(x, yy, x + w, yy); pdf.text(x - 7.5, yy + 2.2, f"{val:.1f}")
 
-    # Pontos + rótulos de CP (alinhados no MESMO X do ponto)
-    r, g, b = _hex_to_rgb(accent_hex)
-    pdf.set_fill_color(r, g, b)
-
+    r, g, b = _hex_to_rgb(accent_hex); pdf.set_fill_color(r, g, b)
+    LABEL_GAP = 18
     n = len(ys)
-    LABEL_GAP = 18  # distância vertical do eixo X até o início do rótulo
     for i, val in enumerate(ys):
         px = x + (w * (i / max(1, n - 1)))
         py = y + h - (h * (val - y_min) / max(1e-9, (y_max - y_min)))
         pdf.ellipse(px - 1.8, py - 1.8, 3.6, 3.6, style="F")
 
-        label = _latin1_safe(codes[i][:14])
-        tw = pdf.get_string_width(label)  # largura do texto
-
+        label = _latin1_safe(codes[i][:14]); tw = pdf.get_string_width(label)
         if _HAS_ROTATE:
-            pivot_x = px
-            pivot_y = y + h + LABEL_GAP + (tw / 2.0)  # centraliza verticalmente
-            pdf.rotate(90, pivot_x, pivot_y)
-            pdf.text(pivot_x, pivot_y, label)
-            pdf.rotate(0)
+            pivot_x = px; pivot_y = y + h + LABEL_GAP + (tw / 2.0)
+            pdf.rotate(90, pivot_x, pivot_y); pdf.text(pivot_x, pivot_y, label); pdf.rotate(0)
         else:
             pdf.text(px - (tw / 2.0), y + h + (LABEL_GAP - 4), label)
 
-    # Título e rótulo do eixo X
-    pdf.set_font("Arial", "B", 11)
-    pdf.text(x, y - 1, "Gráfico de ruptura (MPa por CP)")
-    pdf.set_font("Arial", size=9)
-    pdf.text(x + w / 2 - 12, y + h + 26, "Código do CP")
-
+    pdf.set_font("Arial", "B", 11); pdf.text(x, y - 1, "Gráfico de ruptura (MPa por CP)")
+    pdf.set_font("Arial", size=9); pdf.text(x + w / 2 - 12, y + h + 26, "Código do CP")
 
 def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> bytes:
     pdf = FPDF("P", "mm", "A4")
-
-    # Margens & quebra automática
     left, top, right = 20, 22, 20
-    pdf.set_margins(left, top, right)
-    pdf.set_auto_page_break(auto=True, margin=18)
-
+    pdf.set_margins(left, top, right); pdf.set_auto_page_break(auto=True, margin=18)
     pdf.add_page()
 
-    # Cabeçalho
     pdf.set_font("Arial", "B", 15)
     pdf.cell(0, 8, _latin1_safe("Rupturas de Argamassa  Lote"), ln=1, align="C")
-
     pdf.set_font("Arial", size=11)
     info = f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²"
     pdf.cell(0, 6, _latin1_safe(info), ln=1, align="C")
     pdf.ln(6)
 
-    # Tabela
     hdr = ["#", "Código CP", "Carga (kgf)", "Área (cm²)", "kN/cm²", "MPa"]
     wid = [10, 60, 30, 24, 28, 24]
     pdf.set_font("Arial", "B", 10)
-    for h, w in zip(hdr, wid):
-        pdf.cell(w, 7, _latin1_safe(h), 1, 0, "C")
-    pdf.ln()
-    pdf.set_font("Arial", size=10)
+    for h, w in zip(hdr, wid): pdf.cell(w, 7, _latin1_safe(h), 1, 0, "C")
+    pdf.ln(); pdf.set_font("Arial", size=10)
     for i, row in enumerate(df.itertuples(index=False), 1):
-        cells = [
-            str(i),
-            _latin1_safe(row.codigo_cp),
-            f"{row.carga_kgf:.3f}",
-            f"{row.area_cm2:.2f}",
-            f"{row.kn_cm2:.4f}",
-            f"{row.mpa:.3f}",
-        ]
-        for c, w in zip(cells, wid):
-            pdf.cell(w, 6, c, 1, 0, "C")
+        cells=[str(i), _latin1_safe(row.codigo_cp), f"{row.carga_kgf:.3f}", f"{row.area_cm2:.2f}", f"{row.kn_cm2:.4f}", f"{row.mpa:.3f}"]
+        for c,w in zip(cells,wid): pdf.cell(w,6,c,1,0,"C")
         pdf.ln()
 
-    # ===== Gráfico
-    pdf.ln(12)
-    gy = pdf.get_y() + 6
-    gx = left + 2
-    gw = 180 - (left - 15)
-    gh = 78
+    pdf.ln(12); gy = pdf.get_y() + 6; gx = left + 2; gw = 180 - (left - 15); gh = 78
     draw_scatter_on_pdf(pdf, df, x=gx, y=gy, w=gw, h=gh, accent=ACCENT)
 
-    # ===== ID do relatório (logo abaixo do rótulo "Código do CP")
-    # (o rótulo é desenhado em y + h + 26; colocamos o ID em +34)
+    # ID logo após o rótulo "Código do CP" (gráfico desenha em y+h+26)
     pdf.set_y(gy + gh + 34)
     pdf.set_font("Arial", "I", 9)
     report_id = _gen_report_id(data_obra)
     pdf.cell(0, 6, _latin1_safe(f"ID do relatório: {report_id}"), ln=1, align="L")
 
-    # ===== Rodapé fixo no pé da ÚLTIMA página (sem criar nova)
-    prev_apb = pdf.auto_page_break  # guarda estado
+    # Rodapé no pé da última página (sem criar nova)
+    prev_apb = pdf.auto_page_break
     pdf.set_auto_page_break(auto=False)
     pdf.set_y(-15)
     pdf.set_font("Arial", "I", 9)
-    pdf.cell(0, 6, _latin1_safe("Sistema desenvolvido pela Habisolute Engenharia"), align="C")
+    pdf.cell(0, 6, _latin1_safe("SISTEMA DESENVOLVIDO PELA HABISOLUTE ENGENHARIA"), align="C")
     pdf.set_auto_page_break(auto=prev_apb, margin=18)
 
     return _as_bytes(pdf)
@@ -402,28 +352,43 @@ with b3:
         df_pdf = pd.DataFrame(st.session_state.registros)
         pdf_bytes = build_pdf(st.session_state.obra, st.session_state.data_obra,
                               st.session_state.area_padrao, df_pdf)
-        # nome amigável com ID
         report_id = _gen_report_id(st.session_state.data_obra)
         data_str = st.session_state.data_obra.strftime("%Y%m%d")
         safe_obra = _safe_filename(st.session_state.obra)
         fname = f"Lote_Rupturas_{safe_obra}_{data_str}_{report_id}.pdf" if safe_obra else f"Lote_Rupturas_{data_str}_{report_id}.pdf"
 
-        # 1) Download direto (arquivo em memória)
-        st.download_button("📄 Exportar para PDF", data=BytesIO(pdf_bytes),
-                           file_name=fname, mime="application/pdf")
+        # (1) Download direto
+        st.download_button("📄 Exportar para PDF", data=BytesIO(pdf_bytes), file_name=fname, mime="application/pdf")
 
-        # 2) Abrir para imprimir em nova aba
+        # (2) Imprimir em nova aba – via Blob (confiável, sem tela em branco)
         b64 = base64.b64encode(pdf_bytes).decode("utf-8")
-        pdf_data_uri = f"data:application/pdf;base64,{b64}"
-        st.markdown(
-            f"""<a href="{pdf_data_uri}" target="_blank"
-                   style="display:inline-block;margin-top:8px;padding:.55rem .9rem;border-radius:12px;
-                          background:{ACCENT};color:#111;font-weight:800;text-decoration:none;">
-                   🖨️ Imprimir (abrir PDF)
-                </a>""",
-            unsafe_allow_html=True
-        )
-
+        components.html(f"""
+        <div>
+          <button id="printPdfBtn"
+                  style="margin-top:8px;padding:.55rem .9rem;border-radius:12px;
+                         background:{ACCENT};color:#111;font-weight:800;border:none;cursor:pointer;">
+            🖨️ Imprimir (abrir PDF)
+          </button>
+        </div>
+        <script>
+        (function(){{
+          const b64 = "{b64}";
+          function b64ToUint8Array(b64str){{
+            const byteChars = atob(b64str);
+            const byteNumbers = new Array(byteChars.length);
+            for (let i=0;i<byteChars.length;i++) byteNumbers[i] = byteChars.charCodeAt(i);
+            return new Uint8Array(byteNumbers);
+          }}
+          const bytes = b64ToUint8Array(b64);
+          const blob  = new Blob([bytes], {{type: "application/pdf"}});
+          document.getElementById("printPdfBtn").addEventListener("click", function(){{
+            const url = URL.createObjectURL(blob);
+            const win = window.open(url, "_blank");
+            if (win) {{ win.focus(); }}
+          }});
+        }})();
+        </script>
+        """, height=60)
 # ===================== Rodapé diagnóstico =====================
 st.caption(
     ("PDF direto ativo ✅" if not MISSING else "PDF direto inativo ❌") +
