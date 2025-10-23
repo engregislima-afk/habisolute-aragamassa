@@ -161,6 +161,39 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
+# Força legibilidade da sidebar só no modo escuro
+if st.session_state.theme == "Escuro":
+    st.markdown("""
+    <style>
+    /* fundo da sidebar no escuro */
+    [data-testid="stSidebar"]{
+      background:#0a0a0a !important;
+    }
+
+    /* texto da sidebar sempre visível (títulos, labels, parágrafos, etc.) */
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3,
+    [data-testid="stSidebar"] h4,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] .stMarkdown,
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] div[role="radiogroup"] label {
+      color:#FFC08E !important;      /* laranja claro */
+      opacity:1 !important;
+      filter:none !important;
+      text-shadow:none !important;
+    }
+
+    /* ícones/círculos do radio com contraste total */
+    [data-testid="stSidebar"] div[role="radiogroup"] svg {
+      opacity:1 !important;
+      filter:none !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
 
 # ===================== Conversões & helpers =====================
