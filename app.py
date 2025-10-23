@@ -354,8 +354,7 @@ def draw_scatter_on_pdf(
     accent: str | None = None,
 ) -> None:
     """Desenha o gráfico (MPa por CP) no PDF com espaçamentos ajustados e rótulos centralizados."""
-    if not accent:
-        accent = ACCENT  # fallback seguro
+    accent_hex = (accent or ACCENT)  # fallback
 
     # Moldura + grade
     pdf.set_draw_color(220, 220, 220)
@@ -378,24 +377,24 @@ def draw_scatter_on_pdf(
         pdf.line(x, yy, x + w, yy)
         pdf.text(x - 7.5, yy + 2.2, f"{val:.1f}")
 
-    # Pontos + rótulos de CP (centralizados no ponto e descolados do eixo Y)
-    r = int(accent[1:3], 16)
-    g = int(accent[3:5], 16)
-    b = int(accent[5:7], 16)
+    # Pontos + rótulos de CP (centralizados e descolados do eixo Y)
+    r = int(accent_hex[1:3], 16)
+    g = int(accent_hex[3:5], 16)
+    b = int(accent_hex[5:7], 16)
     pdf.set_fill_color(r, g, b)
 
     n = len(ys)
-    dx = 6.0  # ajuste lateral para afastar do eixo Y (aumente p/ 7–8 se quiser)
+    dx = 6.0  # ajuste lateral para afastar do eixo Y
     for i, val in enumerate(ys):
         px = x + (w * (i / max(1, n - 1)))
         py = y + h - (h * (val - y_min) / max(1e-9, (y_max - y_min)))
         pdf.ellipse(px - 1.8, py - 1.8, 3.6, 3.6, style="F")
 
         label = _latin1_safe(codes[i][:14])
-        tw = pdf.get_string_width(label)  # largura do texto na fonte atual
+        tw = pdf.get_string_width(label)  # largura do texto (px)
 
         if _HAS_ROTATE:
-            # centraliza verticalmente o rótulo no ponto: pivot_y = y+h+offset + tw/2
+            # centraliza verticalmente: somamos tw/2 no pivot_y
             pivot_x = px + dx
             pivot_y = y + h + 16 + (tw / 2.0)
             pdf.rotate(90, pivot_x, pivot_y)
