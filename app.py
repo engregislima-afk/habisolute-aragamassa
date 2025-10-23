@@ -29,8 +29,6 @@ if "obra" not in st.session_state: st.session_state.obra = ""
 if "data_obra" not in st.session_state: st.session_state.data_obra = date.today()
 if "area_padrao" not in st.session_state: st.session_state.area_padrao = 16.00
 if "registros" not in st.session_state: st.session_state.registros = []
-if "logo_bytes" not in st.session_state: st.session_state.logo_bytes = None
-if "footer_text" not in st.session_state: st.session_state.footer_text = ""
 
 with st.sidebar:
     st.header("Preferências")
@@ -38,18 +36,6 @@ with st.sidebar:
         "Tema", ["Escuro", "Claro"],
         horizontal=True,
         index=0 if st.session_state.theme == "Escuro" else 1
-    )
-    st.markdown("---")
-    st.subheader("Logo (opcional)")
-    up_logo = st.file_uploader("PNG/JPG", type=["png","jpg","jpeg"], key="logo_up")
-    if up_logo is not None:
-        st.session_state.logo_bytes = up_logo.read()
-        st.image(st.session_state.logo_bytes, caption="Pré-visualização", use_container_width=True)
-    st.markdown("---")
-    st.subheader("Rodapé do relatório (opcional)")
-    st.session_state.footer_text = st.text_area(
-        "Observações / norma / técnico responsável", st.session_state.footer_text, height=100,
-        placeholder="Ex.: Resultados referem-se exclusivamente às amostras ensaiadas; reprodução somente na íntegra; ±0,90 MPa; NBR 13279..."
     )
 
 # Paleta por tema (alto contraste)
@@ -59,7 +45,7 @@ SURFACE, CARD, BORDER, TEXT = (
     else ("#ffffff", "#fafafa", "rgba(0,0,0,0.12)", "#111111")    # Claro
 )
 
-# ===================== CSS global (inclui correção do uploader) =====================
+# ===================== CSS global =====================
 st.markdown(f"""
 <style>
 :root {{
@@ -131,13 +117,6 @@ input[disabled], textarea[disabled] {{
   border-radius: 14px; padding:.65rem 1rem;
 }}
 .small-note {{ opacity:.85; font-size:.86rem }}
-
-/* Uploader sempre full-width e estável */
-[data-testid="stFileUploader"] {{ width: 100% !important; }}
-[data-testid="stFileUploader"] section {{ width: 100% !important; }}
-[data-testid="stFileUploader"] section > div:nth-child(2) {{ width: 100% !important; }}
-[data-testid="stFileUploader"] * {{ max-width: 100% !important; }}
-[data-testid="stFileUploader"] {{ border-radius: 12px; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -321,9 +300,7 @@ if st.session_state.registros:
 
 # ===================== PDF (fpdf2 desenhando o gráfico) =====================
 def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame, x: float, y: float, w: float, h: float, accent="#d75413"):
-    """Desenha o gráfico de pontos (MPa por CP) diretamente no PDF.
-       Se a build do fpdf2 não suportar rotate(), rótulos ficam horizontais."""
-    # moldura + grade
+    """Desenha o gráfico de pontos (MPa por CP) diretamente no PDF."""
     pdf.set_draw_color(220, 220, 220)
     pdf.rect(x, y, w, h)
 
@@ -342,7 +319,6 @@ def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame, x: float, y: float, w: fl
         pdf.line(x, yy, x + w, yy)
         pdf.text(x - 6, yy + 2.2, f"{val:.1f}")
 
-    # pontos
     r = int(accent[1:3], 16); g = int(accent[3:5], 16); b = int(accent[5:7], 16)
     pdf.set_fill_color(r, g, b)
     n = len(ys)
@@ -367,25 +343,15 @@ def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame, x: float, y: float, w: fl
     pdf.set_font("Arial", size=9)
     pdf.text(x + w/2 - 12, y + h + 12, "Código do CP")
 
-def build_pdf(obra: str, data_obra: date, area_cm2: float,
-              df: pd.DataFrame, logo_bytes: bytes | None, footer_text: str) -> bytes:
+def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> bytes:
     pdf = FPDF("P","mm","A4")
     pdf.add_page()
-    # logo
-    if logo_bytes:
-        try:
-            p = "/tmp/_logo.png"
-            with open(p, "wb") as f: f.write(logo_bytes)
-            pdf.image(p, x=10, y=10, w=35)
-        except Exception:
-            pass
-    # título e info
     pdf.set_font("Arial","B",14); pdf.cell(0,7,_latin1_safe("Rupturas de Argamassa — Lote"),ln=1,align="C")
     pdf.set_font("Arial", size=11)
     info = f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²"
     pdf.cell(0,6,_latin1_safe(info), ln=1, align="C")
     pdf.ln(3)
-    # tabela
+
     hdr, wid = ["#","Código CP","Carga (kgf)","Área (cm²)","kN/cm²","MPa"], [8,52,28,22,28,24]
     pdf.set_font("Arial","B",10)
     for h,w in zip(hdr,wid): pdf.cell(w,7,_latin1_safe(h),1,0,"C")
@@ -394,63 +360,26 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float,
         cells=[str(i), _latin1_safe(row.codigo_cp), f"{row.carga_kgf:.3f}", f"{row.area_cm2:.2f}", f"{row.kn_cm2:.4f}", f"{row.mpa:.3f}"]
         for c,w in zip(cells,wid): pdf.cell(w,6,c,1,0,"C")
         pdf.ln()
-    # gráfico desenhado
+
     pdf.ln(3)
     gy = pdf.get_y() + 2
     draw_scatter_on_pdf(pdf, df, x=15, y=gy, w=180, h=70, accent=ACCENT)
     pdf.set_y(gy + 70)
-    # rodapé
-    if footer_text.strip():
-        pdf.ln(3); pdf.set_font("Arial", size=9); pdf.multi_cell(0,5,_latin1_safe(footer_text.strip()))
     return pdf.output(dest="S").encode("latin1")
 
-# ===================== Ações (botões + uploader full-width) =====================
-# Linha 1: botões
-b1, b2, b3 = st.columns([1,1,1])
-with b1:
+# ===================== Ações (botões) =====================
+a1, a2 = st.columns([1,1])
+with a1:
     st.button("Limpar lote", disabled=(not st.session_state.registros),
               on_click=lambda: st.session_state.update(registros=[]))
 
-with b2:
+with a2:
     if st.session_state.registros:
         st.download_button(
             "Baixar CSV",
             data=pd.DataFrame(st.session_state.registros).to_csv(index=False).encode("utf-8"),
             file_name="rupturas_lote.csv", mime="text/csv"
         )
-
-with b3:
-    if st.session_state.registros:
-        df_json = pd.DataFrame(st.session_state.registros).to_json(orient="records", force_ascii=False)
-        st.download_button("Baixar Lote (.json)", data=df_json.encode("utf-8"),
-                           file_name="rupturas_lote.json", mime="application/json")
-
-# Linha 2: uploader em largura total
-st.markdown("#### Carregar Lote (.json)")
-up_json = st.file_uploader("Selecione o arquivo do lote", type=["json"], key="json_up")
-if up_json is not None:
-    try:
-        loaded = pd.read_json(up_json).to_dict(orient="records")
-        ok = []
-        for r in loaded:
-            if {"codigo_cp","carga_kgf","area_cm2"}.issubset(r):
-                s_kgfcm2, s_kncm2, s_mpa = tensoes_from_kgf(float(r["carga_kgf"]), float(r["area_cm2"]))
-                ok.append({
-                    "codigo_cp": str(r["codigo_cp"]),
-                    "carga_kgf": float(r["carga_kgf"]),
-                    "area_cm2": float(r["area_cm2"]),
-                    "kgf_cm2": float(s_kgfcm2),
-                    "kn_cm2": float(s_kncm2),
-                    "mpa": float(s_mpa),
-                })
-        if ok:
-            st.session_state.registros = ok[:12]
-            st.success(f"Lote carregado: {len(ok[:12])} CP(s).")
-            st.rerun()
-        else:
-            st.error("JSON não contém os campos mínimos.")
-    except Exception as e:
-        st.error(f"Erro ao ler JSON: {e}")
 
 # Botão PDF
 if st.session_state.registros:
@@ -460,8 +389,7 @@ if st.session_state.registros:
     else:
         df_pdf = pd.DataFrame(st.session_state.registros)
         pdf_bytes = build_pdf(
-            st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao,
-            df_pdf, st.session_state.logo_bytes, st.session_state.footer_text
+            st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao, df_pdf
         )
         data_str = st.session_state.data_obra.strftime("%Y%m%d")
         safe_obra = _safe_filename(st.session_state.obra)
@@ -475,8 +403,4 @@ st.caption(
     ("PDF direto ativo ✅" if not MISSING else "PDF direto inativo ❌") +
     (" • Dependência faltando: " + ", ".join(MISSING) if MISSING else "") +
     " • Conversões: [kgf/cm²] → kN/cm² (×0,00980665) e MPa (×0,0980665)."
-)
-st.markdown(
-    "<div class='small-note'>Dica: para PDF com acentos 100% fiéis, podemos embutir fonte TTF (ex.: DejaVuSans) via <code>add_font(..., uni=True)</code> — faço isso pra você quando quiser.</div>",
-    unsafe_allow_html=True
 )
