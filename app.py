@@ -305,7 +305,7 @@ with st.form("cp_form", clear_on_submit=True):
 if st.session_state.registros:
     df = pd.DataFrame(st.session_state.registros).copy()
 
-    st.subheader("Lote atual (editável)")
+    st.subheader("📋Lote atual (editável)")
     edited = st.data_editor(
         df[["codigo_cp","carga_kgf","area_cm2","kn_cm2","mpa"]],
         use_container_width=True, num_rows="fixed",
