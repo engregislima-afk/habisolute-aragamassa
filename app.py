@@ -344,56 +344,72 @@ if st.session_state.registros:
     pdf.text(x + w / 2 - 12, y + h + 26, "Código do CP")   # mais abaixo dos rótulos
 
 
-def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> bytes:
-    pdf = FPDF("P", "mm", "A4")
+def draw_scatter_on_pdf(
+    pdf: "FPDF",
+    df: pd.DataFrame,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    accent: str | None = None,
+) -> None:
+    """Desenha o gráfico (MPa por CP) no PDF com espaçamentos ajustados e rótulos centralizados."""
+    if not accent:
+        accent = ACCENT  # fallback seguro
 
-    # Margens & quebra automática
-    left, top, right = 20, 22, 20
-    pdf.set_margins(left, top, right)
-    pdf.set_auto_page_break(auto=True, margin=18)
+    # Moldura + grade
+    pdf.set_draw_color(220, 220, 220)
+    pdf.rect(x, y, w, h)
 
-    pdf.add_page()
+    codes = df["codigo_cp"].astype(str).tolist()
+    ys = df["mpa"].astype(float).tolist()
+    if not ys:
+        return
 
-    # Cabeçalho
-    pdf.set_font("Arial", "B", 15)
-    pdf.cell(0, 8, _latin1_safe("Rupturas de Argamassa  Lote"), ln=1, align="C")
+    y_max = max(ys) * 1.15
+    y_min = 0.0
 
-    pdf.set_font("Arial", size=11)
-    info = f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²"
-    pdf.cell(0, 6, _latin1_safe(info), ln=1, align="C")
-    pdf.ln(6)
+    # Eixo Y (linhas de grade + ticks)
+    pdf.set_font("Arial", size=8)
+    ticks = 5
+    for k in range(ticks + 1):
+        yy = y + h - (h * k / ticks)
+        val = y_min + (y_max - y_min) * k / ticks
+        pdf.line(x, yy, x + w, yy)
+        pdf.text(x - 7.5, yy + 2.2, f"{val:.1f}")
 
-    # Tabela
-    hdr = ["#", "Código CP", "Carga (kgf)", "Área (cm²)", "kN/cm²", "MPa"]
-    wid = [10, 60, 30, 24, 28, 24]
-    pdf.set_font("Arial", "B", 10)
-    for h, w in zip(hdr, wid):
-        pdf.cell(w, 7, _latin1_safe(h), 1, 0, "C")
-    pdf.ln()
-    pdf.set_font("Arial", size=10)
-    for i, row in enumerate(df.itertuples(index=False), 1):
-        cells = [
-            str(i),
-            _latin1_safe(row.codigo_cp),
-            f"{row.carga_kgf:.3f}",
-            f"{row.area_cm2:.2f}",
-            f"{row.kn_cm2:.4f}",
-            f"{row.mpa:.3f}",
-        ]
-        for c, w in zip(cells, wid):
-            pdf.cell(w, 6, c, 1, 0, "C")
-        pdf.ln()
+    # Pontos + rótulos de CP (centralizados no ponto e descolados do eixo Y)
+    r = int(accent[1:3], 16)
+    g = int(accent[3:5], 16)
+    b = int(accent[5:7], 16)
+    pdf.set_fill_color(r, g, b)
 
-    # Gráfico (com mais “respiro” após a tabela)
-    pdf.ln(12)
-    gy = pdf.get_y() + 6
-    gx = left + 2
-    gw = 180 - (left - 15)
-    gh = 78
-    draw_scatter_on_pdf(pdf, df, x=gx, y=gy, w=gw, h=gh, accent=ACCENT)
-    pdf.set_y(gy + gh + 30)
+    n = len(ys)
+    dx = 6.0  # ajuste lateral para afastar do eixo Y (aumente p/ 7–8 se quiser)
+    for i, val in enumerate(ys):
+        px = x + (w * (i / max(1, n - 1)))
+        py = y + h - (h * (val - y_min) / max(1e-9, (y_max - y_min)))
+        pdf.ellipse(px - 1.8, py - 1.8, 3.6, 3.6, style="F")
 
-    return _as_bytes(pdf)
+        label = _latin1_safe(codes[i][:14])
+        tw = pdf.get_string_width(label)  # largura do texto na fonte atual
+
+        if _HAS_ROTATE:
+            # centraliza verticalmente o rótulo no ponto: pivot_y = y+h+offset + tw/2
+            pivot_x = px + dx
+            pivot_y = y + h + 16 + (tw / 2.0)
+            pdf.rotate(90, pivot_x, pivot_y)
+            pdf.text(pivot_x, pivot_y, label)
+            pdf.rotate(0)
+        else:
+            # sem rotação: centraliza horizontalmente
+            pdf.text(px - (tw / 2.0), y + h + 12, label)
+
+    # Título e rótulo do eixo X com mais “respiro”
+    pdf.set_font("Arial", "B", 11)
+    pdf.text(x, y - 1, "Gráfico de ruptura (MPa por CP)")
+    pdf.set_font("Arial", size=9)
+    pdf.text(x + w / 2 - 12, y + h + 26, "Código do CP")
 
 # ===================== Ações (botões + PDF/Imprimir) =====================
 b1, b2, b3 = st.columns([1,1,1])
