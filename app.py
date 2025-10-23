@@ -324,8 +324,41 @@ with st.form("cp_form", clear_on_submit=True):
 
 # ===================== Tabela + Gráfico (tela) =====================
 if st.session_state.registros:
+    # 1) DataFrame bruto
     df = pd.DataFrame(st.session_state.registros).copy()
 
+    # 2) Normalização para retrocompatibilidade (evita KeyError)
+    #    – preenche colunas novas/ausentes com os valores do lote
+    lote_mold = st.session_state.data_moldagem
+    lote_rupt = st.session_state.data_ruptura
+    lote_idade = max(0, (lote_rupt - lote_mold).days)
+
+    # adiciona colunas se não existirem
+    if "data_moldagem" not in df.columns:
+        df["data_moldagem"] = lote_mold.isoformat()
+    df["data_moldagem"] = df["data_moldagem"].fillna(lote_mold.isoformat())
+
+    if "data_ruptura" not in df.columns:
+        df["data_ruptura"] = lote_rupt.isoformat()
+    df["data_ruptura"] = df["data_ruptura"].fillna(lote_rupt.isoformat())
+
+    if "idade_dias" not in df.columns:
+        df["idade_dias"] = lote_idade
+    df["idade_dias"] = df["idade_dias"].fillna(lote_idade).astype(int)
+
+    # garante tensões caso venham faltando (ou recalcula após normalize)
+    if "kgf_cm2" not in df.columns or "kn_cm2" not in df.columns or "mpa" not in df.columns:
+        df["kgf_cm2"], df["kn_cm2"], df["mpa"] = None, None, None
+    if df[["kgf_cm2","kn_cm2","mpa"]].isnull().any().any():
+        vals = []
+        for r in df.itertuples(index=False):
+            s_kgfcm2, s_kncm2, s_mpa = tensoes_from_kgf(float(r.carga_kgf), float(r.area_cm2))
+            vals.append((s_kgfcm2, s_kncm2, s_mpa))
+        df["kgf_cm2"] = [v[0] for v in vals]
+        df["kn_cm2"]  = [v[1] for v in vals]
+        df["mpa"]     = [v[2] for v in vals]
+
+    # 3) Editor
     st.subheader("📋Lote atual (editável)")
     edited = st.data_editor(
         df[[
@@ -344,6 +377,8 @@ if st.session_state.registros:
             "idade_dias":    st.column_config.NumberColumn("Idade (dias)", disabled=True),
         }
     )
+
+    # 4) Se editou algo, persistimos no session_state (com campos novos)
     if not edited.equals(df[edited.columns]):
         new_regs = []
         for row in edited.itertuples(index=False):
@@ -353,7 +388,7 @@ if st.session_state.registros:
                 "carga_kgf": float(row.carga_kgf),
                 "area_cm2": float(row.area_cm2),
                 "kgf_cm2": float(s_kgfcm2),
-                "kn_cm2":  float(s_kncm2),
+                "kn_cm2":  float(s_kn_cm2),
                 "mpa":     float(s_mpa),
                 "data_moldagem": str(row.data_moldagem),
                 "data_ruptura":  str(row.data_ruptura),
@@ -362,19 +397,14 @@ if st.session_state.registros:
         st.session_state.registros = new_regs
         df = pd.DataFrame(st.session_state.registros)
 
-    with st.expander("🗑️ Excluir CPs", expanded=False):
-        codigos = [r["codigo_cp"] for r in st.session_state.registros]
-        opt = st.multiselect("Selecione os códigos a excluir", codigos)
-        if st.button("Confirmar exclusão"):
-            st.session_state.registros = [r for r in st.session_state.registros if r["codigo_cp"] not in set(opt)]
-            st.rerun()
-
+    # 5) Métricas
     a,b,c = st.columns(3)
     with a: st.metric("Média (kN/cm²)", f"{mean(df['kn_cm2']):.4f}")
     with b: st.metric("Média (MPa)",    f"{mean(df['mpa']):.3f}")
     with c:
         dp = _dp(df["mpa"].tolist()); st.metric("DP (MPa)", f"{(dp if dp is not None else 0.0):.3f}")
 
+    # 6) Gráfico
     st.subheader("📈Gráfico de ruptura (MPa por CP)")
     chart_df = pd.DataFrame({"Código CP": df["codigo_cp"].values, "MPa": df["mpa"].values})
     axis_color = TEXT
