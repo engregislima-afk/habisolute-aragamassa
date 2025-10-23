@@ -466,7 +466,7 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
     pdf.add_page()
 
     pdf.set_font("Arial", "B", 15)
-    pdf.cell(0, 8, _latin1_safe("Rupturas de Argamassa  Lote"), ln=1, align="C")
+    pdf.cell(0, 8, _latin1_safe("🏗️Rupturas de Argamassa  Lote"), ln=1, align="C")
     pdf.set_font("Arial", size=11)
     info = f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²"
     pdf.cell(0, 6, _latin1_safe(info), ln=1, align="C")
