@@ -312,62 +312,30 @@ if st.session_state.registros:
     st.divider()
 
 # ===================== PDF (fpdf2 desenhando o gráfico) =====================
-def draw_scatter_on_pdf(
-    pdf: "FPDF",
-    df: pd.DataFrame,
-    x: float,
-    y: float,
-    w: float,
-    h: float,
-    accent: str = "#d75413",
-) -> None:
-    """Desenha o gráfico (MPa por CP) no PDF com espaçamentos ajustados."""
-    # Moldura + grade
-    pdf.set_draw_color(220, 220, 220)
-    pdf.rect(x, y, w, h)
-
-    codes = df["codigo_cp"].astype(str).tolist()
-    ys = df["mpa"].astype(float).tolist()
-    if not ys:
-        return
-
-    y_max = max(ys) * 1.15
-    y_min = 0.0
-
-    # Eixo Y (linhas de grade + ticks)
-    pdf.set_font("Arial", size=8)
-    ticks = 5
-    for k in range(ticks + 1):
-        yy = y + h - (h * k / ticks)
-        val = y_min + (y_max - y_min) * k / ticks
-        pdf.line(x, yy, x + w, yy)
-        pdf.text(x - 7.5, yy + 2.2, f"{val:.1f}")
-
-    # Pontos + rótulos de CP (afastados do eixo)
-    r = int(accent[1:3], 16)
-    g = int(accent[3:5], 16)
-    b = int(accent[5:7], 16)
+    # Pontos + rótulos de CP (centralizados no ponto)
+    r = int(accent[1:3], 16); g = int(accent[3:5], 16); b = int(accent[5:7], 16)
     pdf.set_fill_color(r, g, b)
 
     n = len(ys)
-    dx = 8.0  # afastamento lateral dos rótulos (aumente se quiser mais)
+    dx = 6.0  # afastamento lateral do eixo Y (ajuste fino à vontade)
     for i, val in enumerate(ys):
         px = x + (w * (i / max(1, n - 1)))
         py = y + h - (h * (val - y_min) / max(1e-9, (y_max - y_min)))
         pdf.ellipse(px - 1.8, py - 1.8, 3.6, 3.6, style="F")
 
         label = _latin1_safe(codes[i][:14])
+        tw = pdf.get_string_width(label)  # largura da string no tamanho de fonte atual
+
         if _HAS_ROTATE:
-            try:
-                pivot_x = px + dx
-                pivot_y = y + h + 16  # desce bem os rótulos verticais
-                pdf.rotate(90, pivot_x, pivot_y)
-                pdf.text(pivot_x, pivot_y, label)
-                pdf.rotate(0)
-            except Exception:
-                pdf.text(px - (len(label) * 1.2) + dx, y + h + 12, label)
+            # Rotacionado: para centralizar, somamos tw/2 no pivot_y
+            pivot_x = px + dx
+            pivot_y = y + h + 16 + (tw / 2.0)   # ↓ desce e centraliza na âncora
+            pdf.rotate(90, pivot_x, pivot_y)
+            pdf.text(pivot_x, pivot_y, label)
+            pdf.rotate(0)
         else:
-            pdf.text(px - (len(label) * 1.2) + dx, y + h + 12, label)
+            # Sem rotação: centraliza pela metade da largura
+            pdf.text(px - (tw / 2.0), y + h + 12, label)
 
     # Títulos do gráfico
     pdf.set_font("Arial", "B", 11)
