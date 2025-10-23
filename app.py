@@ -1,8 +1,10 @@
 # app.py — Rupturas de Argamassa (kgf → kN/cm² / MPa)
-# PDF direto em 1 clique usando SOMENTE fpdf2 (gráfico é desenhado no próprio PDF).
+# PDF direto em 1 clique usando SOMENTE fpdf2 (gráfico desenhado no PDF).
 from __future__ import annotations
 from datetime import date
 from statistics import mean, pstdev
+import unicodedata
+import re
 
 import streamlit as st
 import pandas as pd
@@ -32,19 +34,22 @@ if "footer_text" not in st.session_state: st.session_state.footer_text = ""
 
 with st.sidebar:
     st.header("Preferências")
-    st.session_state.theme = st.radio("Tema", ["Escuro", "Claro"],
-                                      horizontal=True,
-                                      index=0 if st.session_state.theme == "Escuro" else 1)
+    st.session_state.theme = st.radio(
+        "Tema", ["Escuro", "Claro"],
+        horizontal=True,
+        index=0 if st.session_state.theme == "Escuro" else 1
+    )
     st.markdown("---")
     st.subheader("Logo (opcional)")
-    up = st.file_uploader("PNG/JPG/SVG", type=["png","jpg","jpeg","svg"])
+    up = st.file_uploader("PNG/JPG", type=["png","jpg","jpeg"])
     if up is not None:
         st.session_state.logo_bytes = up.read()
         st.image(st.session_state.logo_bytes, caption="Pré-visualização", use_container_width=True)
     st.markdown("---")
     st.subheader("Rodapé do relatório (opcional)")
     st.session_state.footer_text = st.text_area(
-        "Observações / norma / técnico responsável", st.session_state.footer_text, height=90
+        "Observações / norma / técnico responsável", st.session_state.footer_text, height=100,
+        placeholder="Ex.: Resultados referem-se exclusivamente às amostras ensaiadas; reprodução somente na íntegra; ±0,90 MPa; NBR 13279..."
     )
 
 SURFACE, CARD, BORDER, TEXT = (
@@ -62,14 +67,13 @@ h1,h2,h3,h4{{color:var(--text)}}
   background:var(--accent); color:#111; border:none; border-radius:14px;
   padding:.65rem 1rem; font-weight:800; box-shadow:0 6px 16px rgba(215,84,19,.35);
 }}
-.stButton>button:disabled, .stDownloadButton>button:disabled {{
-  opacity:.55; cursor:not-allowed; box-shadow:none;
-}}
+.stButton>button:disabled, .stDownloadButton>button:disabled {{ opacity:.55; cursor:not-allowed; box-shadow:none; }}
 div[data-testid="stForm"] {{
   background:var(--card); border:1px solid var(--border); border-radius:18px; padding:1rem;
 }}
 .kpi {{ display:flex; gap:12px; flex-wrap:wrap; }}
 .kpi>div {{ background:var(--card); border:1px solid var(--border); border-radius:14px; padding:.65rem 1rem; }}
+.small-note {{ opacity:.85; font-size:.86rem }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -79,15 +83,34 @@ st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto
 # ===================== Conversões =====================
 KGF_CM2_TO_MPA    = 0.0980665
 KGF_CM2_TO_KN_CM2 = 0.00980665
+
 def tensoes_from_kgf(carga_kgf: float, area_cm2: float):
     if area_cm2 <= 0: return None, None, None
     s = carga_kgf / area_cm2
     return s, s*KGF_CM2_TO_KN_CM2, s*KGF_CM2_TO_MPA
+
 def _media(v): return None if not v else mean(v)
 def _dp(v):
     if not v: return None
     if len(v)==1: return 0.0
     return pstdev(v)
+
+def _latin1_safe(text: str) -> str:
+    """Mantém PDF robusto caso haja caracteres fora de Latin-1 (Arial core)."""
+    try:
+        text.encode("latin1")
+        return text
+    except Exception:
+        # Remove marcas e troca caracteres “problemáticos”
+        norm = unicodedata.normalize("NFKD", text)
+        ascii_like = "".join(ch for ch in norm if not unicodedata.combining(ch))
+        return ascii_like.encode("latin1", errors="ignore").decode("latin1", errors="ignore")
+
+def _safe_filename(s: str) -> str:
+    s = s.strip()
+    s = re.sub(r"[^\w\-\s\.]", "", s, flags=re.UNICODE)
+    s = re.sub(r"\s+", "_", s)
+    return s[:80] if s else "relatorio"
 
 # ===================== Conversor rápido =====================
 with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=False):
@@ -110,11 +133,24 @@ with st.form("obra_form"):
     data_obra = b.date_input("Data", st.session_state.data_obra, format="DD/MM/YYYY")
     area_padrao = c.number_input("Área do CP (cm²)", min_value=0.0001,
                                  value=float(st.session_state.area_padrao), step=0.01, format="%.2f")
-    if st.form_submit_button("Aplicar"):
+    col = st.columns([1,1,2])
+    apply_clicked = col[0].form_submit_button("Aplicar")
+    recalc_clicked = col[1].form_submit_button("Recalcular lote com nova área", disabled=(not st.session_state.registros))
+    if apply_clicked:
         st.session_state.obra = obra.strip()
         st.session_state.data_obra = data_obra
         st.session_state.area_padrao = float(area_padrao)
         st.success("Dados aplicados.")
+    if recalc_clicked and st.session_state.registros:
+        nova_area = float(area_padrao)
+        for r in st.session_state.registros:
+            r["area_cm2"] = nova_area
+            s_kgfcm2, s_kncm2, s_mpa = tensoes_from_kgf(r["carga_kgf"], nova_area)
+            r["kgf_cm2"] = float(s_kgfcm2)
+            r["kn_cm2"]  = float(s_kncm2)
+            r["mpa"]     = float(s_mpa)
+        st.session_state.area_padrao = nova_area
+        st.success("Todos os CPs recalculados com a nova área.")
 
 # ===================== Lançar CP =====================
 st.info(f"CPs no lote: **{len(st.session_state.registros)}/12**")
@@ -126,7 +162,7 @@ with st.form("cp_form", clear_on_submit=True):
         _, knp, mpp = tensoes_from_kgf(carga, st.session_state.area_padrao)
         st.caption(f"→ Conversões (área {st.session_state.area_padrao:.2f} cm²): "
                    f"**{knp:.5f} kN/cm²** • **{mpp:.4f} MPa**")
-    ok = st.form_submit_button("Adicionar CP", disabled=(len(st.session_state.registros)>=12 or not st.session_state.obra))
+    ok = st.form_submit_button("Adicionar CP", disabled=(len(st.session_state.registros)>=12))
     if ok:
         if not st.session_state.obra: st.error("Preencha os dados da obra.")
         elif not codigo.strip():      st.error("Informe o código do CP.")
@@ -146,14 +182,56 @@ with st.form("cp_form", clear_on_submit=True):
 # ===================== Tabela + Gráfico (tela) =====================
 if st.session_state.registros:
     df = pd.DataFrame(st.session_state.registros)
+    df = df.copy()
+    # editor simples (permite corrigir carga/código na hora)
+    st.subheader("Lote atual (editável)")
+    edited = st.data_editor(
+        df[["codigo_cp","carga_kgf","area_cm2","kn_cm2","mpa"]],
+        use_container_width=True,
+        num_rows="fixed",
+        column_config={
+            "codigo_cp": st.column_config.TextColumn("Código CP"),
+            "carga_kgf": st.column_config.NumberColumn("Carga (kgf)", step=0.1, format="%.3f"),
+            "area_cm2": st.column_config.NumberColumn("Área (cm²)", disabled=True, format="%.2f"),
+            "kn_cm2": st.column_config.NumberColumn("kN/cm²", disabled=True, format="%.5f"),
+            "mpa": st.column_config.NumberColumn("MPa", disabled=True, format="%.4f"),
+        }
+    )
+    # aplica edições (recalcula tensões se carga mudou)
+    if not edited.equals(df[edited.columns]):
+        new_regs = []
+        for row in edited.itertuples(index=False):
+            s_kgfcm2, s_kncm2, s_mpa = tensoes_from_kgf(float(row.carga_kgf), float(row.area_cm2))
+            new_regs.append({
+                "codigo_cp": str(row.codigo_cp),
+                "carga_kgf": float(row.carga_kgf),
+                "area_cm2": float(row.area_cm2),
+                "kgf_cm2": float(s_kgfcm2),
+                "kn_cm2":  float(s_kncm2),
+                "mpa":     float(s_mpa),
+            })
+        st.session_state.registros = new_regs
+        df = pd.DataFrame(st.session_state.registros)
+
+    # exclusão de linhas selecionadas
+    with st.expander("🗑️ Excluir CPs", expanded=False):
+        if st.button("Excluir selecionados (última seleção no editor)"):
+            # Como st.data_editor não expõe seleção diretamente, ofereço exclusão por código:
+            codigos = [r["codigo_cp"] for r in st.session_state.registros]
+            opt = st.multiselect("Selecione os códigos a excluir", codigos)
+            if st.button("Confirmar exclusão"):
+                st.session_state.registros = [r for r in st.session_state.registros if r["codigo_cp"] not in set(opt)]
+                st.rerun()
+
     view = df[["codigo_cp","carga_kgf","area_cm2","kn_cm2","mpa"]].copy()
     view.columns = ["Código CP","Carga (kgf)","Área (cm²)","kN/cm²","MPa"]
-    st.subheader("Lote atual")
-    st.dataframe(view, use_container_width=True)
 
-    a,b = st.columns(2)
+    a,b,c = st.columns(3)
     with a: st.metric("Média (kN/cm²)", f"{mean(df['kn_cm2']):.4f}")
     with b: st.metric("Média (MPa)",    f"{mean(df['mpa']):.3f}")
+    with c:
+        dp = _dp(df["mpa"].tolist())
+        st.metric("DP (MPa)", f"{(dp if dp is not None else 0.0):.3f}")
 
     st.subheader("Gráfico de ruptura (MPa por CP)")
     chart_df = pd.DataFrame({"Código CP": df["codigo_cp"].values, "MPa": df["mpa"].values})
@@ -170,7 +248,7 @@ if st.session_state.registros:
     st.altair_chart(points, use_container_width=True)
     st.divider()
 
-# ===================== PDF (fPdf2 desenhando o gráfico) =====================
+# ===================== PDF (fpdf2 desenhando o gráfico) =====================
 def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame, x: float, y: float, w: float, h: float, accent="#d75413"):
     """Desenha o gráfico de pontos (MPa por CP) diretamente no PDF.
        Se a build do fpdf2 não suportar rotate(), rótulos ficam horizontais."""
@@ -202,7 +280,7 @@ def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame, x: float, y: float, w: fl
         py = y + h - (h * (val - y_min) / max(1e-9, (y_max - y_min)))
         pdf.ellipse(px - 1.8, py - 1.8, 3.6, 3.6, style="F")
 
-        label = codes[i][:10]
+        label = _latin1_safe(codes[i][:14])
         if _HAS_ROTATE:
             try:
                 pdf.rotate(90, px, y + h + 8)
@@ -231,18 +309,18 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float,
         except Exception:
             pass
     # título e info
-    pdf.set_font("Arial","B",14); pdf.cell(0,7,"Rupturas de Argamassa — Lote",ln=1,align="C")
+    pdf.set_font("Arial","B",14); pdf.cell(0,7,_latin1_safe("Rupturas de Argamassa — Lote"),ln=1,align="C")
     pdf.set_font("Arial", size=11)
-    pdf.cell(0,6,f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²",
-             ln=1,align="C")
+    info = f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²"
+    pdf.cell(0,6,_latin1_safe(info), ln=1, align="C")
     pdf.ln(3)
     # tabela
     hdr, wid = ["#","Código CP","Carga (kgf)","Área (cm²)","kN/cm²","MPa"], [8,52,28,22,28,24]
     pdf.set_font("Arial","B",10)
-    for h,w in zip(hdr,wid): pdf.cell(w,7,h,1,0,"C")
+    for h,w in zip(hdr,wid): pdf.cell(w,7,_latin1_safe(h),1,0,"C")
     pdf.ln(); pdf.set_font("Arial", size=10)
     for i,row in enumerate(df.itertuples(index=False),1):
-        cells=[str(i), row.codigo_cp, f"{row.carga_kgf:.3f}", f"{row.area_cm2:.2f}", f"{row.kn_cm2:.4f}", f"{row.mpa:.3f}"]
+        cells=[str(i), _latin1_safe(row.codigo_cp), f"{row.carga_kgf:.3f}", f"{row.area_cm2:.2f}", f"{row.kn_cm2:.4f}", f"{row.mpa:.3f}"]
         for c,w in zip(cells,wid): pdf.cell(w,6,c,1,0,"C")
         pdf.ln()
     # gráfico desenhado
@@ -252,11 +330,11 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float,
     pdf.set_y(gy + 70)
     # rodapé
     if footer_text.strip():
-        pdf.ln(3); pdf.set_font("Arial", size=9); pdf.multi_cell(0,5,footer_text.strip())
+        pdf.ln(3); pdf.set_font("Arial", size=9); pdf.multi_cell(0,5,_latin1_safe(footer_text.strip()))
     return pdf.output(dest="S").encode("latin1")
 
 # ===================== Ações (1 clique = baixar) =====================
-c1,c2,c3 = st.columns(3)
+c1,c2,c3,c4 = st.columns(4)
 with c1:
     st.button("Limpar lote", disabled=(not st.session_state.registros),
               on_click=lambda: st.session_state.update(registros=[]))
@@ -270,26 +348,64 @@ with c2:
         )
 
 with c3:
-    if not st.session_state.registros:
-        st.download_button("📄 Exportar para PDF", data=b"", file_name="vazio.pdf", disabled=True)
+    if st.session_state.registros:
+        # salvar snapshot JSON do lote
+        df_json = pd.DataFrame(st.session_state.registros).to_json(orient="records", force_ascii=False)
+        st.download_button("Baixar Lote (.json)", data=df_json.encode("utf-8"), file_name="rupturas_lote.json", mime="application/json")
+
+with c4:
+    # carregar snapshot JSON
+    up_json = st.file_uploader("Carregar Lote (.json)", type=["json"], label_visibility="collapsed")
+    if up_json is not None:
+        try:
+            loaded = pd.read_json(up_json).to_dict(orient="records")
+            # saneia chaves mínimas
+            ok = []
+            for r in loaded:
+                if {"codigo_cp","carga_kgf","area_cm2"}.issubset(r):
+                    s_kgfcm2, s_kncm2, s_mpa = tensoes_from_kgf(float(r["carga_kgf"]), float(r["area_cm2"]))
+                    ok.append({
+                        "codigo_cp": str(r["codigo_cp"]),
+                        "carga_kgf": float(r["carga_kgf"]),
+                        "area_cm2": float(r["area_cm2"]),
+                        "kgf_cm2": float(s_kgfcm2),
+                        "kn_cm2": float(s_kncm2),
+                        "mpa": float(s_mpa),
+                    })
+            if ok:
+                st.session_state.registros = ok[:12]
+                st.success(f"Lote carregado: {len(ok[:12])} CP(s).")
+                st.rerun()
+            else:
+                st.error("JSON não contém os campos mínimos.")
+        except Exception as e:
+            st.error(f"Erro ao ler JSON: {e}")
+
+# botão PDF
+if st.session_state.registros:
+    if MISSING:
+        st.download_button("📄 Exportar para PDF", data=b"", file_name="rupturas.pdf", disabled=True)
+        st.error("Para PDF direto, instale: " + ", ".join(MISSING))
     else:
-        if MISSING:
-            st.download_button("📄 Exportar para PDF", data=b"", file_name="rupturas.pdf", disabled=True)
-            st.error("Para PDF direto, instale: " + ", ".join(MISSING))
-        else:
-            df_pdf = pd.DataFrame(st.session_state.registros)
-            pdf_bytes = build_pdf(
-                st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao,
-                df_pdf, st.session_state.logo_bytes, st.session_state.footer_text
-            )
-            data_str = st.session_state.data_obra.strftime("%Y%m%d")
-            safe_obra = "".join(c for c in st.session_state.obra if c.isalnum() or c in (" ","-","_")).strip().replace(" ","_")
-            fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf"
-            st.download_button("📄 Exportar para PDF", data=pdf_bytes, file_name=fname, mime="application/pdf")
+        df_pdf = pd.DataFrame(st.session_state.registros)
+        pdf_bytes = build_pdf(
+            st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao,
+            df_pdf, st.session_state.logo_bytes, st.session_state.footer_text
+        )
+        data_str = st.session_state.data_obra.strftime("%Y%m%d")
+        safe_obra = _safe_filename(st.session_state.obra)
+        fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf" if safe_obra else f"Lote_Rupturas_{data_str}.pdf"
+        st.download_button("📄 Exportar para PDF", data=pdf_bytes, file_name=fname, mime="application/pdf")
+else:
+    st.download_button("📄 Exportar para PDF", data=b"", file_name="vazio.pdf", disabled=True)
 
 # ===================== Rodapé diagnóstico =====================
 st.caption(
     ("PDF direto ativo ✅" if not MISSING else "PDF direto inativo ❌") +
     (" • Dependência faltando: " + ", ".join(MISSING) if MISSING else "") +
     " • Conversões: [kgf/cm²] → kN/cm² (×0,00980665) e MPa (×0,0980665)."
+)
+st.markdown(
+    "<div class='small-note'>Dica: para PDF com acentos 100% fiéis, podemos embutir fonte TTF (ex.: DejaVuSans) via <code>add_font(..., uni=True)</code> — faço isso pra você quando quiser.</div>",
+    unsafe_allow_html=True
 )
