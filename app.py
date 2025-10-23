@@ -276,7 +276,7 @@ with st.form("obra_form"):
 # ===================== Lançar CP =====================
 st.info(f"CPs no lote: **{len(st.session_state.registros)}/12**")
 with st.form("cp_form", clear_on_submit=True):
-    st.subheader("Lançar ruptura (apenas kgf)")
+    st.subheader("✅Lançar ruptura (apenas kgf)")
     codigo = st.text_input("Código do CP", max_chars=32, placeholder="Ex.: A039.258 / H682 / 037.421")
     carga  = st.number_input("Carga de ruptura (kgf)", min_value=0.0, step=0.1, format="%.3f")
     if carga and st.session_state.area_padrao:
