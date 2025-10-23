@@ -41,9 +41,9 @@ with st.sidebar:
     )
     st.markdown("---")
     st.subheader("Logo (opcional)")
-    up = st.file_uploader("PNG/JPG", type=["png","jpg","jpeg"])
-    if up is not None:
-        st.session_state.logo_bytes = up.read()
+    up_logo = st.file_uploader("PNG/JPG", type=["png","jpg","jpeg"], key="logo_up")
+    if up_logo is not None:
+        st.session_state.logo_bytes = up_logo.read()
         st.image(st.session_state.logo_bytes, caption="Pré-visualização", use_container_width=True)
     st.markdown("---")
     st.subheader("Rodapé do relatório (opcional)")
@@ -52,14 +52,14 @@ with st.sidebar:
         placeholder="Ex.: Resultados referem-se exclusivamente às amostras ensaiadas; reprodução somente na íntegra; ±0,90 MPa; NBR 13279..."
     )
 
-# Paleta por tema (com alto contraste)
+# Paleta por tema (alto contraste)
 SURFACE, CARD, BORDER, TEXT = (
     ("#0a0a0a", "#111213", "rgba(255,255,255,0.10)", "#f5f5f5")  # Escuro
     if st.session_state.theme == "Escuro"
     else ("#ffffff", "#fafafa", "rgba(0,0,0,0.12)", "#111111")    # Claro
 )
 
-# CSS global
+# ===================== CSS global (inclui correção do uploader) =====================
 st.markdown(f"""
 <style>
 :root {{
@@ -131,6 +131,13 @@ input[disabled], textarea[disabled] {{
   border-radius: 14px; padding:.65rem 1rem;
 }}
 .small-note {{ opacity:.85; font-size:.86rem }}
+
+/* Uploader sempre full-width e estável */
+[data-testid="stFileUploader"] {{ width: 100% !important; }}
+[data-testid="stFileUploader"] section {{ width: 100% !important; }}
+[data-testid="stFileUploader"] section > div:nth-child(2) {{ width: 100% !important; }}
+[data-testid="stFileUploader"] * {{ max-width: 100% !important; }}
+[data-testid="stFileUploader"] {{ border-radius: 12px; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -146,7 +153,6 @@ def tensoes_from_kgf(carga_kgf: float, area_cm2: float):
     s = carga_kgf / area_cm2
     return s, s*KGF_CM2_TO_KN_CM2, s*KGF_CM2_TO_MPA
 
-def _media(v): return None if not v else mean(v)
 def _dp(v):
     if not v: return None
     if len(v)==1: return 0.0
@@ -237,8 +243,7 @@ with st.form("cp_form", clear_on_submit=True):
 
 # ===================== Tabela + Gráfico (tela) =====================
 if st.session_state.registros:
-    df = pd.DataFrame(st.session_state.registros)
-    df = df.copy()
+    df = pd.DataFrame(st.session_state.registros).copy()
 
     st.subheader("Lote atual (editável)")
     edited = st.data_editor(
@@ -399,13 +404,14 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float,
         pdf.ln(3); pdf.set_font("Arial", size=9); pdf.multi_cell(0,5,_latin1_safe(footer_text.strip()))
     return pdf.output(dest="S").encode("latin1")
 
-# ===================== Ações (1 clique = baixar) =====================
-c1,c2,c3,c4 = st.columns(4)
-with c1:
+# ===================== Ações (botões + uploader full-width) =====================
+# Linha 1: botões
+b1, b2, b3 = st.columns([1,1,1])
+with b1:
     st.button("Limpar lote", disabled=(not st.session_state.registros),
               on_click=lambda: st.session_state.update(registros=[]))
 
-with c2:
+with b2:
     if st.session_state.registros:
         st.download_button(
             "Baixar CSV",
@@ -413,37 +419,38 @@ with c2:
             file_name="rupturas_lote.csv", mime="text/csv"
         )
 
-with c3:
+with b3:
     if st.session_state.registros:
         df_json = pd.DataFrame(st.session_state.registros).to_json(orient="records", force_ascii=False)
         st.download_button("Baixar Lote (.json)", data=df_json.encode("utf-8"),
                            file_name="rupturas_lote.json", mime="application/json")
 
-with c4:
-    up_json = st.file_uploader("Carregar Lote (.json)", type=["json"], label_visibility="collapsed")
-    if up_json is not None:
-        try:
-            loaded = pd.read_json(up_json).to_dict(orient="records")
-            ok = []
-            for r in loaded:
-                if {"codigo_cp","carga_kgf","area_cm2"}.issubset(r):
-                    s_kgfcm2, s_kncm2, s_mpa = tensoes_from_kgf(float(r["carga_kgf"]), float(r["area_cm2"]))
-                    ok.append({
-                        "codigo_cp": str(r["codigo_cp"]),
-                        "carga_kgf": float(r["carga_kgf"]),
-                        "area_cm2": float(r["area_cm2"]),
-                        "kgf_cm2": float(s_kgfcm2),
-                        "kn_cm2": float(s_kncm2),
-                        "mpa": float(s_mpa),
-                    })
-            if ok:
-                st.session_state.registros = ok[:12]
-                st.success(f"Lote carregado: {len(ok[:12])} CP(s).")
-                st.rerun()
-            else:
-                st.error("JSON não contém os campos mínimos.")
-        except Exception as e:
-            st.error(f"Erro ao ler JSON: {e}")
+# Linha 2: uploader em largura total
+st.markdown("#### Carregar Lote (.json)")
+up_json = st.file_uploader("Selecione o arquivo do lote", type=["json"], key="json_up")
+if up_json is not None:
+    try:
+        loaded = pd.read_json(up_json).to_dict(orient="records")
+        ok = []
+        for r in loaded:
+            if {"codigo_cp","carga_kgf","area_cm2"}.issubset(r):
+                s_kgfcm2, s_kncm2, s_mpa = tensoes_from_kgf(float(r["carga_kgf"]), float(r["area_cm2"]))
+                ok.append({
+                    "codigo_cp": str(r["codigo_cp"]),
+                    "carga_kgf": float(r["carga_kgf"]),
+                    "area_cm2": float(r["area_cm2"]),
+                    "kgf_cm2": float(s_kgfcm2),
+                    "kn_cm2": float(s_kncm2),
+                    "mpa": float(s_mpa),
+                })
+        if ok:
+            st.session_state.registros = ok[:12]
+            st.success(f"Lote carregado: {len(ok[:12])} CP(s).")
+            st.rerun()
+        else:
+            st.error("JSON não contém os campos mínimos.")
+    except Exception as e:
+        st.error(f"Erro ao ler JSON: {e}")
 
 # Botão PDF
 if st.session_state.registros:
