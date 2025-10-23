@@ -65,6 +65,20 @@ INPUT_BDR  = "rgba(255,255,255,0.3)" if IS_DARK else "#CDD3DA"
 PLACEHOLDER = "rgba(255,255,255,0.6)" if IS_DARK else "rgba(17,17,17,0.55)"
 
 # ===================== CSS global =====================
+IS_DARK = (st.session_state.theme == "Escuro")
+
+SURFACE, CARD, BORDER, TEXT = (
+    ("#0a0a0a", "#111213", "rgba(255,255,255,0.12)", "#f5f5f5")
+    if IS_DARK else
+    ("#ffffff", "#fafafa", "rgba(0,0,0,0.16)", "#111111")
+)
+ACCENT = "#d75413"
+SIDEBAR_TEXT = "#FFC08E" if IS_DARK else ACCENT
+INPUT_BG   = "#18191b" if IS_DARK else "#ffffff"
+INPUT_TEXT = "#f5f5f5" if IS_DARK else "#111111"
+INPUT_BDR  = "rgba(255,255,255,0.35)" if IS_DARK else "#CDD3DA"
+PLACEHOLDER = "rgba(255,255,255,0.6)" if IS_DARK else "rgba(17,17,17,0.55)"
+
 st.markdown(f"""
 <style>
 :root {{
@@ -84,12 +98,9 @@ html, body, [class*="block-container"] {{
   background: var(--surface) !important;
   color: var(--text) !important;
 }}
+h1,h2,h3,h4, label, legend, .stMarkdown p {{ color: var(--text) !important; }}
 
-h1,h2,h3,h4, label, legend, .stMarkdown p {{
-  color: var(--text) !important;
-}}
-
-/* ===== Sidebar em laranja legível ===== */
+/* ===== Sidebar legível nos dois temas ===== */
 div[data-testid="stSidebar"] {{
   background: var(--surface) !important;
   border-right: 1px solid var(--border);
@@ -101,35 +112,16 @@ div[data-testid="stSidebar"] h4,
 div[data-testid="stSidebar"] p,
 div[data-testid="stSidebar"] label,
 div[data-testid="stSidebar"] .stMarkdown,
-div[data-testid="stSidebar"] [data-baseweb="radio"] *,
-div[data-testid="stSidebar"] .stRadio label {{
-  color: var(--sidebar-text) !important;
-}}
-st.markdown(f"""
-<style>
-/* === FIX DEFINITIVO: Sidebar legível no modo escuro ===
-   Força cor e remove opacidade/filters das labels e textos */
-div[data-testid="stSidebar"] h1,
-div[data-testid="stSidebar"] h2,
-div[data-testid="stSidebar"] h3,
-div[data-testid="stSidebar"] h4,
-div[data-testid="stSidebar"] p,
-div[data-testid="stSidebar"] label,
-div[data-testid="stSidebar"] .stMarkdown,
 div[data-testid="stSidebar"] [data-baseweb="radio"] label,
 div[data-testid="stSidebar"] [data-baseweb="radio"] span {{
-  color: {('#FFC08E' if st.session_state.theme == 'Escuro' else ACCENT)} !important;  /* laranja claro no escuro; ACCENT no claro */
+  color: var(--sidebar-text) !important;
   opacity: 1 !important;
   filter: none !important;
 }}
-
-/* opcional: deixa os círculos do radio com mais contraste no escuro */
 div[data-testid="stSidebar"] [data-baseweb="radio"] svg {{
   opacity: 1 !important;
   filter: none !important;
 }}
-</style>
-""", unsafe_allow_html=True)
 
 /* ===== Cards ===== */
 div[data-testid="stForm"] {{
@@ -139,86 +131,47 @@ div[data-testid="stForm"] {{
   padding: 1rem;
 }}
 
-/* ===== Botões ===== */
-.stButton>button, .stDownloadButton>button {{
-  background: var(--accent);
-  color:#111 !important;
-  border:none; border-radius:14px;
-  padding:.65rem 1rem; font-weight:800;
-  box-shadow:0 6px 16px rgba(215,84,19,.35);
-}}
-.stButton>button:disabled, .stDownloadButton>button:disabled {{
-  opacity:.55; cursor:not-allowed; box-shadow:none;
-}}
-
-/* ===== Inputs com contraste forte por tema ===== */
+/* ===== Inputs com contraste por tema ===== */
 input, textarea, select {{
   color: var(--input-text) !important;
   background: var(--input-bg) !important;
   border-color: var(--input-border) !important;
 }}
-/* alguns wrappers de input do Streamlit */
 div[role="textbox"] *, .stTextInput input, .stDateInput input, .stNumberInput input {{
   color: var(--input-text) !important;
   background: var(--input-bg) !important;
 }}
-/* placeholder visível em ambos os temas */
 ::placeholder {{ color: var(--placeholder) !important; }}
 
-/* Dataframe */
+/* ===== Dataframe ===== */
 [data-testid="stDataFrame"] thead th, 
 [data-testid="stDataFrame"] tbody td {{ color: var(--text) !important; }}
 [data-testid="stDataFrame"] tbody tr {{ background: var(--card) !important; }}
 
-/* KPIs */
-.kpi {{ display:flex; gap:12px; flex-wrap:wrap; }}
-.kpi>div {{
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px; padding:.65rem 1rem;
-}}
-.small-note {{ opacity:.85; font-size:.86rem }}
-</style>
-""", unsafe_allow_html=True)
-
-# ===== Título principal em laranja (mantém como você pediu)
-st.markdown(
-    f"<h1 style='margin:0;color:{ACCENT}'>🏗️Sistema de Rupturas de Argamassa Habisolute</h1>",
-    unsafe_allow_html=True
-)
-st.markdown("""
-<style>
-/* ====== FIX: botões dentro de forms (Aplicar / etc.) ====== */
-div[data-testid="stForm"] .stButton > button {
+/* ===== Botões (inclui dentro de forms) ===== */
+.stButton>button, .stDownloadButton>button,
+div[data-testid="stForm"] .stButton>button {{
   background: var(--accent) !important;
-  color: #111 !important;
-  border: none !important;
-  filter: none !important;
-}
-div[data-testid="stForm"] .stButton > button:disabled {
-  background: #c9c9c9 !important;   /* cinza claro (não preto) */
-  color: #222 !important;
-  box-shadow: none !important;
-  opacity: .8 !important;
-}
+  color:#111 !important;
+  border:none !important; border-radius:14px !important;
+  padding:.65rem 1rem !important; font-weight:800 !important;
+  box-shadow:0 6px 16px rgba(215,84,19,.35) !important;
+}}
+div[data-testid="stForm"] .stButton>button:disabled {{
+  background:#cfcfcf !important; color:#222 !important; box-shadow:none !important; opacity:.85 !important;
+}}
 
-/* ====== FIX: mensagens de feedback (st.success, st.error, etc.) ====== */
-div[data-testid="stAlert"] {
-  color: var(--text) !important;      /* texto sempre visível no claro/escuro */
-}
+/* ===== Alerts (success/error/info) legíveis ===== */
+div[data-testid="stAlert"] {{ color: var(--text) !important; }}
 div[data-testid="stAlert"] p, 
 div[data-testid="stAlert"] span, 
-div[data-testid="stAlert"] strong {
-  color: var(--text) !important;
-  filter: none !important;
-  font-weight: 600;
-}
+div[data-testid="stAlert"] strong {{ color: var(--text) !important; font-weight:600; }}
+html:root:not(.dark) div[data-testid="stAlert"] {{ border:1px solid rgba(0,0,0,.08); border-radius:10px; }}
 
-/* opcional: borda sutil nos alerts para destacar no tema claro */
-html:root:not(.dark) div[data-testid="stAlert"] {
-  border: 1px solid rgba(0,0,0,.08);
-  border-radius: 10px;
-}
+/* ===== KPIs ===== */
+.kpi {{ display:flex; gap:12px; flex-wrap:wrap; }}
+.kpi>div {{ background: var(--card); border:1px solid var(--border); border-radius:14px; padding:.65rem 1rem; }}
+.small-note {{ opacity:.85; font-size:.86rem }}
 </style>
 """, unsafe_allow_html=True)
 
