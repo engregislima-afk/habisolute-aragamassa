@@ -312,26 +312,32 @@ if st.session_state.registros:
     st.divider()
 
 # ===================== PDF (fpdf2 desenhando o gráfico) =====================
-def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame, x: float, y: float, w: float, h: float, accent="#d75413"):
-    """Desenha o gráfico de pontos (MPa por CP) diretamente no PDF."""
+def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame,
+                        x: float, y: float, w: float, h: float,
+                        accent="#d75413"):
+    """Desenha o gráfico de pontos (MPa por CP) diretamente no PDF, com respiro."""
+    # moldura + grade
     pdf.set_draw_color(220, 220, 220)
     pdf.rect(x, y, w, h)
 
     codes = df["codigo_cp"].astype(str).tolist()
     ys    = df["mpa"].astype(float).tolist()
-    if not ys: return
+    if not ys:
+        return
 
     y_max = max(ys) * 1.15
     y_min = 0.0
 
+    # Eixo Y (linhas de grade + ticks)
     pdf.set_font("Arial", size=8)
     ticks = 5
     for k in range(ticks + 1):
         yy = y + h - (h * k / ticks)
         val = y_min + (y_max - y_min) * k / ticks
         pdf.line(x, yy, x + w, yy)
-        pdf.text(x - 6, yy + 2.2, f"{val:.1f}")
+        pdf.text(x - 7, yy + 2.2, f"{val:.1f}")
 
+    # pontos
     r = int(accent[1:3], 16); g = int(accent[3:5], 16); b = int(accent[5:7], 16)
     pdf.set_fill_color(r, g, b)
     n = len(ys)
@@ -343,41 +349,71 @@ def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame, x: float, y: float, w: fl
         label = _latin1_safe(codes[i][:14])
         if _HAS_ROTATE:
             try:
-                pdf.rotate(90, px, y + h + 8)
-                pdf.text(px, y + h + 8, label)
+                # escreve o rótulo do CP abaixo do eixo X, girado
+                pdf.rotate(90, px, y + h + 10)
+                pdf.text(px, y + h + 10, label)
                 pdf.rotate(0)
             except Exception:
-                pdf.text(px - (len(label)*1.2), y + h + 6, label)
+                pdf.text(px - (len(label)*1.2), y + h + 7, label)
         else:
-            pdf.text(px - (len(label)*1.2), y + h + 6, label)
+            pdf.text(px - (len(label)*1.2), y + h + 7, label)
 
+    # títulos do gráfico
     pdf.set_font("Arial", "B", 11)
-    pdf.text(x, y - 4, "Gráfico de ruptura (MPa por CP)")
+    pdf.text(x, y - 5, "Gráfico de ruptura (MPa por CP)")
     pdf.set_font("Arial", size=9)
-    pdf.text(x + w/2 - 12, y + h + 12, "Código do CP")
+    pdf.text(x + w/2 - 12, y + h + 16, "Código do CP")
+
 
 def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> bytes:
-    pdf = FPDF("P","mm","A4")
+    pdf = FPDF("P", "mm", "A4")
+
+    # ===== Margens & quebra automática =====
+    left, top, right = 20, 22, 20   # << margens mais generosas
+    pdf.set_margins(left, top, right)
+    pdf.set_auto_page_break(auto=True, margin=18)
+
     pdf.add_page()
-    pdf.set_font("Arial","B",14); pdf.cell(0,7,_latin1_safe("Rupturas de Argamassa — Lote"),ln=1,align="C")
+
+    # ===== Cabeçalho =====
+    pdf.set_font("Arial", "B", 15)
+    pdf.cell(0, 8, _latin1_safe("Rupturas de Argamassa  Lote"), ln=1, align="C")
+
     pdf.set_font("Arial", size=11)
     info = f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²"
-    pdf.cell(0,6,_latin1_safe(info), ln=1, align="C")
-    pdf.ln(3)
+    pdf.cell(0, 6, _latin1_safe(info), ln=1, align="C")
+    pdf.ln(6)  # respiro após o cabeçalho
 
-    hdr, wid = ["#","Código CP","Carga (kgf)","Área (cm²)","kN/cm²","MPa"], [8,52,28,22,28,24]
-    pdf.set_font("Arial","B",10)
-    for h,w in zip(hdr,wid): pdf.cell(w,7,_latin1_safe(h),1,0,"C")
-    pdf.ln(); pdf.set_font("Arial", size=10)
-    for i,row in enumerate(df.itertuples(index=False),1):
-        cells=[str(i), _latin1_safe(row.codigo_cp), f"{row.carga_kgf:.3f}", f"{row.area_cm2:.2f}", f"{row.kn_cm2:.4f}", f"{row.mpa:.3f}"]
-        for c,w in zip(cells,wid): pdf.cell(w,6,c,1,0,"C")
+    # ===== Tabela =====
+    hdr  = ["#", "Código CP", "Carga (kgf)", "Área (cm²)", "kN/cm²", "MPa"]
+    wid  = [10, 60, 30, 24, 28, 24]  # levemente mais largos
+    pdf.set_font("Arial", "B", 10)
+    for h, w in zip(hdr, wid):
+        pdf.cell(w, 7, _latin1_safe(h), 1, 0, "C")
+    pdf.ln()
+    pdf.set_font("Arial", size=10)
+    for i, row in enumerate(df.itertuples(index=False), 1):
+        cells = [
+            str(i),
+            _latin1_safe(row.codigo_cp),
+            f"{row.carga_kgf:.3f}",
+            f"{row.area_cm2:.2f}",
+            f"{row.kn_cm2:.4f}",
+            f"{row.mpa:.3f}",
+        ]
+        for c, w in zip(cells, wid):
+            pdf.cell(w, 6, c, 1, 0, "C")
         pdf.ln()
 
-    pdf.ln(3)
+    # ===== Gráfico =====
+    pdf.ln(6)  # respiro entre tabela e gráfico
     gy = pdf.get_y() + 2
-    draw_scatter_on_pdf(pdf, df, x=15, y=gy, w=180, h=70, accent=ACCENT)
-    pdf.set_y(gy + 70)
+    gx = left + 2                 # puxa ligeiramente para a direita
+    gw = 180 - (left - 15)        # largura ajustada para caber melhor
+    gh = 78                       # um pouco mais alto
+
+    draw_scatter_on_pdf(pdf, df, x=gx, y=gy, w=gw, h=gh, accent=ACCENT)
+    pdf.set_y(gy + gh + 18)       # avança o cursor para baixo do gráfico
 
     return _as_bytes(pdf)
 
