@@ -5,11 +5,11 @@ from datetime import date
 from statistics import mean, pstdev
 import unicodedata
 import re
+import base64
 
 import streamlit as st
 import pandas as pd
 import altair as alt
-import base64
 
 # ===================== Dependência obrigatória (PDF) =====================
 MISSING = []
@@ -153,6 +153,11 @@ def _safe_filename(s: str) -> str:
     s = re.sub(r"[^\w\-\s\.]", "", s, flags=re.UNICODE)
     s = re.sub(r"\s+", "_", s)
     return s[:80] if s else "relatorio"
+
+def _as_bytes(pdf_obj) -> bytes:
+    """Compat: fpdf2 pode retornar str (latin1) ou bytes para output(dest='S')."""
+    out = pdf_obj.output(dest="S")
+    return out if isinstance(out, (bytes, bytearray)) else out.encode("latin1", errors="ignore")
 
 # ===================== Conversor rápido =====================
 with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=False):
@@ -366,17 +371,17 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
     gy = pdf.get_y() + 2
     draw_scatter_on_pdf(pdf, df, x=15, y=gy, w=180, h=70, accent=ACCENT)
     pdf.set_y(gy + 70)
-    return pdf.output(dest="S").encode("latin1")
 
-# ===================== Ações (botões) =====================
-# ===================== Ações (botões) =====================
-a1, a2, a3 = st.columns([1,1,1])
+    return _as_bytes(pdf)
 
-with a1:
+# ===================== Ações (botões + PDF/Imprimir) =====================
+b1, b2, b3 = st.columns([1,1,1])
+
+with b1:
     st.button("Limpar lote", disabled=(not st.session_state.registros),
               on_click=lambda: st.session_state.update(registros=[]))
 
-with a2:
+with b2:
     if st.session_state.registros:
         st.download_button(
             "Baixar CSV",
@@ -384,8 +389,7 @@ with a2:
             file_name="rupturas_lote.csv", mime="text/csv"
         )
 
-# Botões de PDF (download + imprimir)
-with a3:
+with b3:
     if not st.session_state.registros:
         st.download_button("📄 Exportar para PDF", data=b"", file_name="vazio.pdf", disabled=True)
     else:
@@ -401,10 +405,10 @@ with a3:
             safe_obra = _safe_filename(st.session_state.obra)
             fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf" if safe_obra else f"Lote_Rupturas_{data_str}.pdf"
 
-            # 1) Download direto
+            # 1) Download direto do PDF
             st.download_button("📄 Exportar para PDF", data=pdf_bytes, file_name=fname, mime="application/pdf")
 
-            # 2) Abrir/Imprimir (abre em nova aba)
+            # 2) Abrir para imprimir em nova aba
             b64 = base64.b64encode(pdf_bytes).decode("utf-8")
             pdf_data_uri = f"data:application/pdf;base64,{b64}"
             st.markdown(
