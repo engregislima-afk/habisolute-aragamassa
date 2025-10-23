@@ -338,6 +338,7 @@ def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame,
         pdf.text(x - 7.5, yy + 2.2, f"{val:.1f}")
 
     # pontos
+        # pontos
     r = int(accent[1:3], 16); g = int(accent[3:5], 16); b = int(accent[5:7], 16)
     pdf.set_fill_color(r, g, b)
     n = len(ys)
@@ -346,17 +347,18 @@ def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame,
         py = y + h - (h * (val - y_min) / max(1e-9, (y_max - y_min)))
         pdf.ellipse(px - 1.8, py - 1.8, 3.6, 3.6, style="F")
 
+        # --- rótulos dos CPs (descolados da linha do eixo) ---
         label = _latin1_safe(codes[i][:14])
+        dx = 3.0    # <<< ajuste lateral: aumenta para afastar mais do eixo
         if _HAS_ROTATE:
             try:
-                # ↓ Desce os rótulos do eixo X (códigos)
-                pdf.rotate(90, px, y + h + 16)
-                pdf.text(px, y + h + 16, label)
+                pdf.rotate(90, px + dx, y + h + 16)    # pivot também deslocado
+                pdf.text(px + dx, y + h + 16, label)   # texto deslocado
                 pdf.rotate(0)
             except Exception:
-                pdf.text(px - (len(label)*1.2), y + h + 12, label)
+                pdf.text(px - (len(label)*1.2) + dx, y + h + 12, label)
         else:
-            pdf.text(px - (len(label)*1.2), y + h + 12, label)
+            pdf.text(px - (len(label)*1.2) + dx, y + h + 12, label)
 
     # ↓ Título mais baixo (1 mm acima da moldura, longe da tabela)
     pdf.set_font("Arial", "B", 11)
