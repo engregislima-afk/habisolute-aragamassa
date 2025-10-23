@@ -362,12 +362,12 @@ def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame,
             pdf.text(px - (len(label)*1.2) + dx, y + h + 12, label)
 
     # ↓ Título mais baixo (1 mm acima da moldura, longe da tabela)
-    pdf.set_font("Arial", "B", 11)
-    pdf.text(x, y - 1, "Gráfico de ruptura (MPa por CP)")
+    # na draw_scatter_on_pdf(...)
+pdf.set_font("Arial", "B", 11)
+pdf.text(x, y - 0.5, "Gráfico de ruptura (MPa por CP)")  # -0.5 deixa o título mais perto do gráfico, longe da tabela
 
-    # ↓ Rótulo do eixo X mais afastado
-    pdf.set_font("Arial", size=9)
-    pdf.text(x + w/2 - 12, y + h + 24, "Código do CP")
+pdf.set_font("Arial", size=9)
+pdf.text(x + w/2 - 12, y + h + 26, "Código do CP")       # era +24 → +26 descola mais dos rótulos
 
 
 def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> bytes:
@@ -411,14 +411,13 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
         pdf.ln()
 
     # ===== Gráfico =====
-    pdf.ln(6)  # respiro entre tabela e gráfico
-    gy = pdf.get_y() + 2
-    gx = left + 2                 # puxa ligeiramente para a direita
-    gw = 180 - (left - 15)        # largura ajustada para caber melhor
-    gh = 78                       # um pouco mais alto
-
-    draw_scatter_on_pdf(pdf, df, x=gx, y=gy, w=gw, h=gh, accent=ACCENT)
-    pdf.set_y(gy + gh + 30)       # avança o cursor para baixo do gráfico
+pdf.ln(12)             # <— era 6; dá mais espaço depois da tabela
+gy = pdf.get_y() + 6   # <— era +2; empurra o gráfico ainda mais pra baixo
+gx = left + 2
+gw = 180 - (left - 15)
+gh = 78
+draw_scatter_on_pdf(pdf, df, x=gx, y=gy, w=gw, h=gh, accent=ACCENT)
+pdf.set_y(gy + gh + 30)
 
     return _as_bytes(pdf)
 
