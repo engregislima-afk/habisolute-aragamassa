@@ -9,6 +9,7 @@ import re
 import streamlit as st
 import pandas as pd
 import altair as alt
+import base64
 
 # ===================== Dependência obrigatória (PDF) =====================
 MISSING = []
@@ -368,7 +369,9 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
     return pdf.output(dest="S").encode("latin1")
 
 # ===================== Ações (botões) =====================
-a1, a2 = st.columns([1,1])
+# ===================== Ações (botões) =====================
+a1, a2, a3 = st.columns([1,1,1])
+
 with a1:
     st.button("Limpar lote", disabled=(not st.session_state.registros),
               on_click=lambda: st.session_state.update(registros=[]))
@@ -381,22 +384,37 @@ with a2:
             file_name="rupturas_lote.csv", mime="text/csv"
         )
 
-# Botão PDF
-if st.session_state.registros:
-    if MISSING:
-        st.download_button("📄 Exportar para PDF", data=b"", file_name="rupturas.pdf", disabled=True)
-        st.error("Para PDF direto, instale: " + ", ".join(MISSING))
+# Botões de PDF (download + imprimir)
+with a3:
+    if not st.session_state.registros:
+        st.download_button("📄 Exportar para PDF", data=b"", file_name="vazio.pdf", disabled=True)
     else:
-        df_pdf = pd.DataFrame(st.session_state.registros)
-        pdf_bytes = build_pdf(
-            st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao, df_pdf
-        )
-        data_str = st.session_state.data_obra.strftime("%Y%m%d")
-        safe_obra = _safe_filename(st.session_state.obra)
-        fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf" if safe_obra else f"Lote_Rupturas_{data_str}.pdf"
-        st.download_button("📄 Exportar para PDF", data=pdf_bytes, file_name=fname, mime="application/pdf")
-else:
-    st.download_button("📄 Exportar para PDF", data=b"", file_name="vazio.pdf", disabled=True)
+        if MISSING:
+            st.download_button("📄 Exportar para PDF", data=b"", file_name="rupturas.pdf", disabled=True)
+            st.error("Para PDF direto, instale: " + ", ".join(MISSING))
+        else:
+            df_pdf = pd.DataFrame(st.session_state.registros)
+            pdf_bytes = build_pdf(
+                st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao, df_pdf
+            )
+            data_str = st.session_state.data_obra.strftime("%Y%m%d")
+            safe_obra = _safe_filename(st.session_state.obra)
+            fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf" if safe_obra else f"Lote_Rupturas_{data_str}.pdf"
+
+            # 1) Download direto
+            st.download_button("📄 Exportar para PDF", data=pdf_bytes, file_name=fname, mime="application/pdf")
+
+            # 2) Abrir/Imprimir (abre em nova aba)
+            b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+            pdf_data_uri = f"data:application/pdf;base64,{b64}"
+            st.markdown(
+                f"""<a href="{pdf_data_uri}" target="_blank" 
+                       style="display:inline-block;margin-top:8px;padding:.55rem .9rem;border-radius:12px;
+                              background:{ACCENT};color:#111;font-weight:800;text-decoration:none;">
+                       🖨️ Imprimir (abrir PDF)
+                    </a>""",
+                unsafe_allow_html=True
+            )
 
 # ===================== Rodapé diagnóstico =====================
 st.caption(
