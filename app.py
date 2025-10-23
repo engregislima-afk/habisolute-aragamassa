@@ -345,7 +345,7 @@ if st.session_state.registros:
     with c:
         dp = _dp(df["mpa"].tolist()); st.metric("DP (MPa)", f"{(dp if dp is not None else 0.0):.3f}")
 
-    st.subheader("Gráfico de ruptura (MPa por CP)")
+    st.subheader("📈Gráfico de ruptura (MPa por CP)")
     chart_df = pd.DataFrame({"Código CP": df["codigo_cp"].values, "MPa": df["mpa"].values})
     axis_color = TEXT
     grid_color = "rgba(255,255,255,0.20)" if IS_DARK else "rgba(0,0,0,0.12)"
