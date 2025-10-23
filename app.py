@@ -1,4 +1,4 @@
-# app.py — Rupturas de Argamassa (kgf → kN/cm² / MPa)
+# app.py — Sistema de Rupturas de Argamassa Habisolute
 from __future__ import annotations
 from datetime import date
 from statistics import mean, pstdev
@@ -20,9 +20,9 @@ except Exception:
     _HAS_ROTATE = False
     MISSING.append("fpdf2>=2.7")
 
-# ===================== Tema & Estado =====================
+# ===================== Estado & Tema =====================
 ACCENT = "#d75413"
-st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🏗️", layout="centered")
+st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🧱", layout="centered")
 
 if "theme" not in st.session_state: st.session_state.theme = "Escuro"
 if "obra" not in st.session_state: st.session_state.obra = ""
@@ -30,7 +30,7 @@ if "data_obra" not in st.session_state: st.session_state.data_obra = date.today(
 if "area_padrao" not in st.session_state: st.session_state.area_padrao = 16.00
 if "registros" not in st.session_state: st.session_state.registros = []
 
-# ===== Sidebar (título e textos em laranja)
+# ===== Sidebar
 with st.sidebar:
     st.markdown(f"<h2 style='margin-top:0;color:{ACCENT}'>Preferências</h2>", unsafe_allow_html=True)
     st.session_state.theme = st.radio(
@@ -39,32 +39,7 @@ with st.sidebar:
         index=0 if st.session_state.theme == "Escuro" else 1
     )
 
-SURFACE, CARD, BORDER, TEXT = (
-    ("#0a0a0a", "#111213", "rgba(255,255,255,0.10)", "#f5f5f5")
-    if st.session_state.theme == "Escuro"
-    else ("#ffffff", "#fafafa", "rgba(0,0,0,0.12)", "#111111")
-)
-
-# ===================== CSS global =====================
-# Paleta por tema (alto contraste) + variáveis auxiliares
-IS_DARK = (st.session_state.theme == "Escuro")
-
-SURFACE, CARD, BORDER, TEXT = (
-    ("#0a0a0a", "#111213", "rgba(255,255,255,0.12)", "#f5f5f5")  # Escuro
-    if IS_DARK else
-    ("#ffffff", "#fafafa", "rgba(0,0,0,0.16)", "#111111")        # Claro
-)
-
-# Sidebar: use um laranja mais claro no escuro p/ ficar legível
-SIDEBAR_TEXT = "#FFC08E" if IS_DARK else ACCENT
-
-# Campos de entrada: cores fortes por tema
-INPUT_BG   = "#18191b" if IS_DARK else "#ffffff"
-INPUT_TEXT = "#f5f5f5" if IS_DARK else "#111111"
-INPUT_BDR  = "rgba(255,255,255,0.3)" if IS_DARK else "#CDD3DA"
-PLACEHOLDER = "rgba(255,255,255,0.6)" if IS_DARK else "rgba(17,17,17,0.55)"
-
-# ===================== CSS global =====================
+# ===================== CSS global (um único bloco) =====================
 IS_DARK = (st.session_state.theme == "Escuro")
 
 SURFACE, CARD, BORDER, TEXT = (
@@ -72,7 +47,6 @@ SURFACE, CARD, BORDER, TEXT = (
     if IS_DARK else
     ("#ffffff", "#fafafa", "rgba(0,0,0,0.16)", "#111111")
 )
-ACCENT = "#d75413"
 SIDEBAR_TEXT = "#FFC08E" if IS_DARK else ACCENT
 INPUT_BG   = "#18191b" if IS_DARK else "#ffffff"
 INPUT_TEXT = "#f5f5f5" if IS_DARK else "#111111"
@@ -98,9 +72,10 @@ html, body, [class*="block-container"] {{
   background: var(--surface) !important;
   color: var(--text) !important;
 }}
-h1,h2,h3,h4, label, legend, .stMarkdown p {{ color: var(--text) !important; }}
+/* NÃO estilize h1 aqui para não sumir o título */
+h2,h3,h4, label, legend, .stMarkdown p {{ color: var(--text) !important; }}
 
-/* ===== Sidebar legível nos dois temas ===== */
+/* Sidebar legível */
 div[data-testid="stSidebar"] {{
   background: var(--surface) !important;
   border-right: 1px solid var(--border);
@@ -118,12 +93,9 @@ div[data-testid="stSidebar"] [data-baseweb="radio"] span {{
   opacity: 1 !important;
   filter: none !important;
 }}
-div[data-testid="stSidebar"] [data-baseweb="radio"] svg {{
-  opacity: 1 !important;
-  filter: none !important;
-}}
+div[data-testid="stSidebar"] [data-baseweb="radio"] svg {{ opacity: 1 !important; filter: none !important; }}
 
-/* ===== Cards ===== */
+/* Cards */
 div[data-testid="stForm"] {{
   background: var(--card);
   border: 1px solid var(--border);
@@ -131,7 +103,7 @@ div[data-testid="stForm"] {{
   padding: 1rem;
 }}
 
-/* ===== Inputs com contraste por tema ===== */
+/* Inputs */
 input, textarea, select {{
   color: var(--input-text) !important;
   background: var(--input-bg) !important;
@@ -143,12 +115,12 @@ div[role="textbox"] *, .stTextInput input, .stDateInput input, .stNumberInput in
 }}
 ::placeholder {{ color: var(--placeholder) !important; }}
 
-/* ===== Dataframe ===== */
+/* Dataframe */
 [data-testid="stDataFrame"] thead th, 
 [data-testid="stDataFrame"] tbody td {{ color: var(--text) !important; }}
 [data-testid="stDataFrame"] tbody tr {{ background: var(--card) !important; }}
 
-/* ===== Botões (inclui dentro de forms) ===== */
+/* Botões (inclui dentro de forms) */
 .stButton>button, .stDownloadButton>button,
 div[data-testid="stForm"] .stButton>button {{
   background: var(--accent) !important;
@@ -161,21 +133,37 @@ div[data-testid="stForm"] .stButton>button:disabled {{
   background:#cfcfcf !important; color:#222 !important; box-shadow:none !important; opacity:.85 !important;
 }}
 
-/* ===== Alerts (success/error/info) legíveis ===== */
+/* Alerts legíveis */
 div[data-testid="stAlert"] {{ color: var(--text) !important; }}
 div[data-testid="stAlert"] p, 
 div[data-testid="stAlert"] span, 
 div[data-testid="stAlert"] strong {{ color: var(--text) !important; font-weight:600; }}
 html:root:not(.dark) div[data-testid="stAlert"] {{ border:1px solid rgba(0,0,0,.08); border-radius:10px; }}
 
-/* ===== KPIs ===== */
+/* KPIs */
 .kpi {{ display:flex; gap:12px; flex-wrap:wrap; }}
 .kpi>div {{ background: var(--card); border:1px solid var(--border); border-radius:14px; padding:.65rem 1rem; }}
 .small-note {{ opacity:.85; font-size:.86rem }}
 </style>
 """, unsafe_allow_html=True)
 
-# ===================== Conversões e helpers =====================
+# ===== Título (laranja garantido)
+st.markdown(
+    "<h1 id='app-title' style='margin:0'>Sistema de Rupturas de Argamassa Habisolute</h1>",
+    unsafe_allow_html=True
+)
+st.markdown(f"""
+<style>
+#app-title {{
+  color: {ACCENT} !important;
+  letter-spacing: .2px;
+}}
+</style>
+""", unsafe_allow_html=True)
+
+st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
+
+# ===================== Conversões & helpers =====================
 KGF_CM2_TO_MPA    = 0.0980665
 KGF_CM2_TO_KN_CM2 = 0.00980665
 
@@ -213,6 +201,7 @@ def _hex_to_rgb(hexstr: str):
     return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
 
 def _gen_report_id(dt: date) -> str:
+    # Ex.: 20251023-A453DA
     return f"{dt.strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}"
 
 # ===================== Conversor rápido =====================
@@ -223,13 +212,14 @@ with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=Fals
     if kgf and area_demo:
         _, kn, mp = tensoes_from_kgf(kgf, area_demo)
         st.markdown(
-            f"<div class='kpi'><div><b>kN/cm²</b><br>{kn:.5f}</div><div><b>MPa</b><br>{mp:.4f}</div></div>",
+            f"<div class='kpi'><div><b>kN/cm²</b><br>{kn:.5f}</div>"
+            f"<div><b>MPa</b><br>{mp:.4f}</div></div>",
             unsafe_allow_html=True
         )
 
 # ===================== Dados da obra =====================
 with st.form("obra_form"):
-    st.subheader("☑️Dados da obra")
+    st.subheader("Dados da obra")
     a,b,c = st.columns([2,1,1])
     obra = a.text_input("Nome da obra", st.session_state.obra, placeholder="Ex.: Residencial Jardim Tropical")
     data_obra = b.date_input("Data", st.session_state.data_obra, format="DD/MM/YYYY")
@@ -254,7 +244,7 @@ with st.form("obra_form"):
 # ===================== Lançar CP =====================
 st.info(f"CPs no lote: **{len(st.session_state.registros)}/12**")
 with st.form("cp_form", clear_on_submit=True):
-    st.subheader("✅Lançar ruptura (apenas kgf)")
+    st.subheader("Lançar ruptura (apenas kgf)")
     codigo = st.text_input("Código do CP", max_chars=32, placeholder="Ex.: A039.258 / H682 / 037.421")
     carga  = st.number_input("Carga de ruptura (kgf)", min_value=0.0, step=0.1, format="%.3f")
     if carga and st.session_state.area_padrao:
@@ -324,7 +314,7 @@ if st.session_state.registros:
     st.subheader("Gráfico de ruptura (MPa por CP)")
     chart_df = pd.DataFrame({"Código CP": df["codigo_cp"].values, "MPa": df["mpa"].values})
     axis_color = TEXT
-    grid_color = "rgba(255,255,255,0.20)" if st.session_state.theme == "Escuro" else "rgba(0,0,0,0.12)"
+    grid_color = "rgba(255,255,255,0.20)" if IS_DARK else "rgba(0,0,0,0.12)"
     y_max = max(chart_df["MPa"]) * 1.15 if len(chart_df) else 1
     points = (
         alt.Chart(chart_df).mark_point(size=90, filled=True, color=ACCENT)
@@ -401,18 +391,18 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
     pdf.ln(12); gy = pdf.get_y() + 6; gx = left + 2; gw = 180 - (left - 15); gh = 78
     draw_scatter_on_pdf(pdf, df, x=gx, y=gy, w=gw, h=gh, accent=ACCENT)
 
-    # ID logo após o rótulo "Código do CP" (gráfico desenha em y+h+26)
+    # ID logo após o rótulo "Código do CP"
     pdf.set_y(gy + gh + 34)
     pdf.set_font("Arial", "I", 9)
     report_id = _gen_report_id(data_obra)
     pdf.cell(0, 6, _latin1_safe(f"ID do relatório: {report_id}"), ln=1, align="L")
 
-    # Rodapé no pé da última página (sem criar nova)
+    # Rodapé na última página (sem criar nova)
     prev_apb = pdf.auto_page_break
     pdf.set_auto_page_break(auto=False)
     pdf.set_y(-15)
     pdf.set_font("Arial", "I", 9)
-    pdf.cell(0, 6, _latin1_safe("Sistema desenvolvido pela Habisolute Engenharia"), align="C")
+    pdf.cell(0, 6, _latin1_safe("SISTEMA DESENVOLVIDO PELA HABISOLUTE ENGENHARIA"), align="C")
     pdf.set_auto_page_break(auto=prev_apb, margin=18)
 
     return _as_bytes(pdf)
@@ -450,7 +440,7 @@ with b3:
         # (1) Download direto
         st.download_button("📄 Exportar para PDF", data=BytesIO(pdf_bytes), file_name=fname, mime="application/pdf")
 
-        # (2) Imprimir em nova aba – via Blob (confiável, sem tela em branco)
+        # (2) Imprimir em nova aba — Blob (sem tela em branco)
         b64 = base64.b64encode(pdf_bytes).decode("utf-8")
         components.html(f"""
         <div>
@@ -465,9 +455,9 @@ with b3:
           const b64 = "{b64}";
           function b64ToUint8Array(b64str){{
             const byteChars = atob(b64str);
-            const byteNumbers = new Array(byteChars.length);
-            for (let i=0;i<byteChars.length;i++) byteNumbers[i] = byteChars.charCodeAt(i);
-            return new Uint8Array(byteNumbers);
+            const out = new Uint8Array(byteChars.length);
+            for (let i=0;i<byteChars.length;i++) out[i] = byteChars.charCodeAt(i);
+            return out;
           }}
           const bytes = b64ToUint8Array(b64);
           const blob  = new Blob([bytes], {{type: "application/pdf"}});
@@ -479,6 +469,7 @@ with b3:
         }})();
         </script>
         """, height=60)
+
 # ===================== Rodapé diagnóstico =====================
 st.caption(
     ("PDF direto ativo ✅" if not MISSING else "PDF direto inativo ❌") +
