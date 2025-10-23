@@ -232,10 +232,10 @@ def _gen_report_id(dt: date) -> str:
 # ===== Normas (usadas no PDF e exibidas como rodapé do app)
 NORMAS_TXT = (
     "Normas de referência (argamassa):\n"
-    "• ABNT NBR 13279 — Determinação da resistência à tração na flexão e à compressão.\n"
-    "• ABNT NBR 13276 — Determinação do índice de consistência.\n"
-    "• ABNT NBR 13277 — Retenção de água.\n"
-    "• ABNT NBR 13281 — Requisitos para argamassas de assentamento e revestimento."
+    "• 📚ABNT NBR 13279 — Determinação da resistência à tração na flexão e à compressão.\n"
+    "• 📚ABNT NBR 13276 — Determinação do índice de consistência.\n"
+    "• 📚ABNT NBR 13277 — Retenção de água.\n"
+    "• 📚ABNT NBR 13281 — Requisitos para argamassas de assentamento e revestimento."
 )
 
 # ===================== Conversor rápido =====================
