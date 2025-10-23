@@ -29,6 +29,9 @@ if "obra" not in st.session_state: st.session_state.obra = ""
 if "data_obra" not in st.session_state: st.session_state.data_obra = date.today()
 if "area_padrao" not in st.session_state: st.session_state.area_padrao = 16.00
 if "registros" not in st.session_state: st.session_state.registros = []
+# NOVOS CAMPOS (lote)
+if "data_moldagem" not in st.session_state: st.session_state.data_moldagem = date.today()
+if "data_ruptura"  not in st.session_state: st.session_state.data_ruptura  = date.today()
 
 # ===== Sidebar
 with st.sidebar:
@@ -251,21 +254,35 @@ with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=Fals
             unsafe_allow_html=True
         )
 
-# ===================== Dados da obra =====================
+# ===================== Dados da obra (inclui datas novas) =====================
 with st.form("obra_form"):
     st.subheader("✅Dados da obra")
+
+    # linha 1
     a,b,c = st.columns([2,1,1])
     obra = a.text_input("Nome da obra", st.session_state.obra, placeholder="Ex.: Residencial Jardim Tropical")
     data_obra = b.date_input("Data", st.session_state.data_obra, format="DD/MM/YYYY")
     area_padrao = c.number_input("Área do CP (cm²)", min_value=0.0001, value=float(st.session_state.area_padrao), step=0.01, format="%.2f")
+
+    # linha 2 — NOVOS CAMPOS
+    d,e,f = st.columns([1,1,1])
+    data_moldagem = d.date_input("Data de moldagem", st.session_state.data_moldagem, format="DD/MM/YYYY")
+    data_ruptura  = e.date_input("Data de ruptura",  st.session_state.data_ruptura,  format="DD/MM/YYYY")
+    idade_dias = max(0, (data_ruptura - data_moldagem).days)
+    f.number_input("Idade de ruptura (dias)", value=idade_dias, disabled=True)
+
     col = st.columns([1,1,2])
     apply_clicked  = col[0].form_submit_button("Aplicar")
     recalc_clicked = col[1].form_submit_button("Recalcular lote com nova área", disabled=(not st.session_state.registros))
+
     if apply_clicked:
         st.session_state.obra = obra.strip()
         st.session_state.data_obra = data_obra
         st.session_state.area_padrao = float(area_padrao)
+        st.session_state.data_moldagem = data_moldagem
+        st.session_state.data_ruptura  = data_ruptura
         st.success("Dados aplicados.")
+
     if recalc_clicked and st.session_state.registros:
         nova_area = float(area_padrao)
         for r in st.session_state.registros:
@@ -298,6 +315,10 @@ with st.form("cp_form", clear_on_submit=True):
                 "kgf_cm2": float(s_kgfcm2),
                 "kn_cm2":  float(s_kncm2),
                 "mpa":     float(s_mpa),
+                # novos campos replicados (úteis no CSV)
+                "data_moldagem": st.session_state.data_moldagem.isoformat(),
+                "data_ruptura":  st.session_state.data_ruptura.isoformat(),
+                "idade_dias":    max(0, (st.session_state.data_ruptura - st.session_state.data_moldagem).days),
             })
             st.success("CP adicionado.")
 
@@ -307,14 +328,20 @@ if st.session_state.registros:
 
     st.subheader("📋Lote atual (editável)")
     edited = st.data_editor(
-        df[["codigo_cp","carga_kgf","area_cm2","kn_cm2","mpa"]],
+        df[[
+            "codigo_cp","carga_kgf","area_cm2","kn_cm2","mpa",
+            "data_moldagem","data_ruptura","idade_dias"
+        ]],
         use_container_width=True, num_rows="fixed",
         column_config={
             "codigo_cp": st.column_config.TextColumn("Código CP"),
             "carga_kgf": st.column_config.NumberColumn("Carga (kgf)", step=0.1, format="%.3f"),
-            "area_cm2": st.column_config.NumberColumn("Área (cm²)", disabled=True, format="%.2f"),
-            "kn_cm2": st.column_config.NumberColumn("kN/cm²", disabled=True, format="%.5f"),
-            "mpa": st.column_config.NumberColumn("MPa", disabled=True, format="%.4f"),
+            "area_cm2":  st.column_config.NumberColumn("Área (cm²)", disabled=True, format="%.2f"),
+            "kn_cm2":    st.column_config.NumberColumn("kN/cm²", disabled=True, format="%.5f"),
+            "mpa":       st.column_config.NumberColumn("MPa", disabled=True, format="%.4f"),
+            "data_moldagem": st.column_config.TextColumn("Data moldagem", disabled=True),
+            "data_ruptura":  st.column_config.TextColumn("Data ruptura", disabled=True),
+            "idade_dias":    st.column_config.NumberColumn("Idade (dias)", disabled=True),
         }
     )
     if not edited.equals(df[edited.columns]):
@@ -328,6 +355,9 @@ if st.session_state.registros:
                 "kgf_cm2": float(s_kgfcm2),
                 "kn_cm2":  float(s_kncm2),
                 "mpa":     float(s_mpa),
+                "data_moldagem": str(row.data_moldagem),
+                "data_ruptura":  str(row.data_ruptura),
+                "idade_dias":    int(row.idade_dias),
             })
         st.session_state.registros = new_regs
         df = pd.DataFrame(st.session_state.registros)
@@ -410,6 +440,13 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
     pdf.set_font("Arial", size=11)
     info = f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²"
     pdf.cell(0, 6, _latin1_safe(info), ln=1, align="C")
+
+    # Linha extra com Moldagem/Ruptura/Idade a partir do estado do lote
+    mold = st.session_state.data_moldagem.strftime('%d/%m/%Y')
+    rupt = st.session_state.data_ruptura.strftime('%d/%m/%Y')
+    idade = max(0, (st.session_state.data_ruptura - st.session_state.data_moldagem).days)
+    pdf.cell(0, 6, _latin1_safe(f"Moldagem: {mold}   |   Ruptura: {rupt}   |   Idade: {idade} dias"), ln=1, align="C")
+
     pdf.ln(6)
 
     hdr = ["#", "Código CP", "Carga (kgf)", "Área (cm²)", "kN/cm²", "MPa"]
@@ -509,7 +546,7 @@ with b3:
         </script>
         """, height=60)
 
-# ======= Diagnóstico (AGORA acima das normas)
+# ======= Diagnóstico (acima das normas)
 st.caption(
     ("PDF direto ativo ✅" if not MISSING else "PDF direto inativo ❌") +
     (" • Dependência faltando: " + ", ".join(MISSING) if MISSING else "") +
@@ -520,10 +557,10 @@ st.caption(
 st.markdown("---")
 st.markdown(
     "**Normas de referência (argamassa):**  \n"
-    "• ABNT NBR 13279 — Determinação da resistência à tração na flexão e à compressão.  \n"
-    "• ABNT NBR 13276 — Determinação do índice de consistência.  \n"
-    "• ABNT NBR 13277 — Retenção de água.  \n"
-    "• ABNT NBR 13281 — Requisitos para argamassas de assentamento e revestimento."
+    "• 📚ABNT NBR 13279 — Determinação da resistência à tração na flexão e à compressão.  \n"
+    "• 📚ABNT NBR 13276 — Determinação do índice de consistência.  \n"
+    "• 📚ABNT NBR 13277 — Retenção de água.  \n"
+    "• 📚ABNT NBR 13281 — Requisitos para argamassas de assentamento e revestimento."
 )
 st.markdown(
     "<div style='text-align:center;opacity:.9;margin-top:.5rem'><em>"
