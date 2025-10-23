@@ -6,6 +6,7 @@ from statistics import mean, pstdev
 import unicodedata
 import re
 import base64
+import secrets
 from io import BytesIO
 
 import streamlit as st
@@ -51,34 +52,22 @@ SURFACE, CARD, BORDER, TEXT = (
 st.markdown(f"""
 <style>
 :root {{
-  --accent:{ACCENT};
-  --surface:{SURFACE};
-  --card:{CARD};
-  --border:{BORDER};
-  --text:{TEXT};
+  --accent:{ACCENT}; --surface:{SURFACE}; --card:{CARD}; --border:{BORDER}; --text:{TEXT};
 }}
-
 html, body, [class*="block-container"] {{ background: var(--surface) !important; color: var(--text) !important; }}
 h1,h2,h3,h4, label, legend, .stMarkdown p {{ color: var(--text) !important; }}
-
 div[data-testid="stSidebar"] {{ background: var(--surface) !important; color: var(--text) !important; border-right: 1px solid var(--border); }}
 div[data-testid="stForm"] {{ background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 1rem; }}
-
 .stButton>button, .stDownloadButton>button {{
   background: var(--accent); color:#111 !important; border:none; border-radius:14px;
   padding:.65rem 1rem; font-weight:800; box-shadow:0 6px 16px rgba(215,84,19,.35);
 }}
 .stButton>button:disabled, .stDownloadButton>button:disabled {{ opacity:.55; cursor:not-allowed; box-shadow:none; }}
-
-/* Inputs coerentes com o tema */
 input, textarea, select {{ color: var(--text) !important; background: var(--card) !important; border-color: var(--border) !important; }}
 ::placeholder {{ color: color-mix(in oklab, var(--text), transparent 50%); }}
 input[disabled], textarea[disabled] {{ opacity:.85; color: color-mix(in oklab, var(--text), white 25%) !important; }}
-
-/* Dataframe */
 [data-testid="stDataFrame"] thead th, [data-testid="stDataFrame"] tbody td {{ color: var(--text) !important; }}
 [data-testid="stDataFrame"] tbody tr {{ background: var(--card) !important; }}
-
 .kpi {{ display:flex; gap:12px; flex-wrap:wrap; }}
 .kpi>div {{ background: var(--card); border:1px solid var(--border); border-radius:14px; padding:.65rem 1rem; }}
 .small-note {{ opacity:.85; font-size:.86rem }}
@@ -88,7 +77,7 @@ input[disabled], textarea[disabled] {{ opacity:.85; color: color-mix(in oklab, v
 st.markdown("<h1 style='margin:0'>Rupturas de Argamassa</h1>", unsafe_allow_html=True)
 st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
 
-# ===================== Conversões =====================
+# ===================== Conversões e helpers =====================
 KGF_CM2_TO_MPA    = 0.0980665
 KGF_CM2_TO_KN_CM2 = 0.00980665
 
@@ -103,7 +92,6 @@ def _dp(v):
     return pstdev(v)
 
 def _latin1_safe(text: str) -> str:
-    """Mantém PDF robusto caso haja caracteres fora de Latin-1 (Arial core)."""
     try:
         text.encode("latin1"); return text
     except Exception:
@@ -118,7 +106,6 @@ def _safe_filename(s: str) -> str:
     return s[:80] if s else "relatorio"
 
 def _as_bytes(pdf_obj) -> bytes:
-    """Compat: fpdf2 pode retornar str (latin1) ou bytes para output(dest='S')."""
     out = pdf_obj.output(dest="S")
     if isinstance(out, bytes): return out
     if isinstance(out, bytearray): return bytes(out)
@@ -127,6 +114,10 @@ def _as_bytes(pdf_obj) -> bytes:
 def _hex_to_rgb(hexstr: str):
     s = hexstr.lstrip("#")
     return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
+
+def _gen_report_id(dt: date) -> str:
+    """ID legível: AAAAMMDD + 6 hex aleatórios (maiúsculos)."""
+    return f"{dt.strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}"
 
 # ===================== Conversor rápido =====================
 with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=False):
@@ -162,9 +153,7 @@ with st.form("obra_form"):
         for r in st.session_state.registros:
             r["area_cm2"] = nova_area
             s_kgfcm2, s_kncm2, s_mpa = tensoes_from_kgf(r["carga_kgf"], nova_area)
-            r["kgf_cm2"] = float(s_kgfcm2)
-            r["kn_cm2"]  = float(s_kncm2)
-            r["mpa"]     = float(s_mpa)
+            r["kgf_cm2"] = float(s_kgfcm2); r["kn_cm2"] = float(s_kncm2); r["mpa"] = float(s_mpa)
         st.session_state.area_padrao = nova_area
         st.success("Todos os CPs recalculados com a nova área.")
 
@@ -293,7 +282,7 @@ def draw_scatter_on_pdf(
         pdf.line(x, yy, x + w, yy)
         pdf.text(x - 7.5, yy + 2.2, f"{val:.1f}")
 
-        # Pontos + rótulos de CP (ALINHADOS NO MESMO X DO PONTO)
+    # Pontos + rótulos de CP (alinhados no MESMO X do ponto)
     r, g, b = _hex_to_rgb(accent_hex)
     pdf.set_fill_color(r, g, b)
 
@@ -305,21 +294,18 @@ def draw_scatter_on_pdf(
         pdf.ellipse(px - 1.8, py - 1.8, 3.6, 3.6, style="F")
 
         label = _latin1_safe(codes[i][:14])
-        tw = pdf.get_string_width(label)  # largura do texto na fonte atual
+        tw = pdf.get_string_width(label)  # largura do texto
 
         if _HAS_ROTATE:
-            # nada de deslocamento lateral: mesmo X do ponto
             pivot_x = px
-            # centraliza verticalmente: somamos tw/2 ao pivot_y
-            pivot_y = y + h + LABEL_GAP + (tw / 2.0)
+            pivot_y = y + h + LABEL_GAP + (tw / 2.0)  # centraliza verticalmente
             pdf.rotate(90, pivot_x, pivot_y)
             pdf.text(pivot_x, pivot_y, label)
             pdf.rotate(0)
         else:
-            # sem rotação: centraliza horizontalmente
             pdf.text(px - (tw / 2.0), y + h + (LABEL_GAP - 4), label)
 
-    # Título e rótulo do eixo X com mais “respiro”
+    # Título e rótulo do eixo X
     pdf.set_font("Arial", "B", 11)
     pdf.text(x, y - 1, "Gráfico de ruptura (MPa por CP)")
     pdf.set_font("Arial", size=9)
@@ -366,14 +352,24 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
             pdf.cell(w, 6, c, 1, 0, "C")
         pdf.ln()
 
-    # Gráfico (com mais “respiro” após a tabela)
+    # Gráfico
     pdf.ln(12)
     gy = pdf.get_y() + 6
     gx = left + 2
     gw = 180 - (left - 15)
     gh = 78
     draw_scatter_on_pdf(pdf, df, x=gx, y=gy, w=gw, h=gh, accent=ACCENT)
-    pdf.set_y(gy + gh + 30)
+    pdf.set_y(gy + gh + 6)
+
+    # ID do relatório
+    report_id = _gen_report_id(data_obra)
+    pdf.set_font("Arial", "I", 9)
+    pdf.cell(0, 6, _latin1_safe(f"ID do relatório: {report_id}"), ln=1, align="L")
+
+    # Rodapé fixo
+    pdf.set_y(-15)
+    pdf.set_font("Arial", "I", 9)
+    pdf.cell(0, 6, _latin1_safe("SISTEMA DESENVOLVIDO PELA HABISOLUTE ENGENHARIA"), align="C")
 
     return _as_bytes(pdf)
 
@@ -402,9 +398,11 @@ with b3:
         df_pdf = pd.DataFrame(st.session_state.registros)
         pdf_bytes = build_pdf(st.session_state.obra, st.session_state.data_obra,
                               st.session_state.area_padrao, df_pdf)
+        # nome amigável com ID
+        report_id = _gen_report_id(st.session_state.data_obra)
         data_str = st.session_state.data_obra.strftime("%Y%m%d")
         safe_obra = _safe_filename(st.session_state.obra)
-        fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf" if safe_obra else f"Lote_Rupturas_{data_str}.pdf"
+        fname = f"Lote_Rupturas_{safe_obra}_{data_str}_{report_id}.pdf" if safe_obra else f"Lote_Rupturas_{data_str}_{report_id}.pdf"
 
         # 1) Download direto (arquivo em memória)
         st.download_button("📄 Exportar para PDF", data=BytesIO(pdf_bytes),
