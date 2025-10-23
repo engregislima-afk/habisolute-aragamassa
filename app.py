@@ -509,7 +509,14 @@ with b3:
         </script>
         """, height=60)
 
-# ===================== Rodapé do APP (informativo)
+# ======= Diagnóstico (AGORA acima das normas)
+st.caption(
+    ("PDF direto ativo ✅" if not MISSING else "PDF direto inativo ❌") +
+    (" • Dependência faltando: " + ", ".join(MISSING) if MISSING else "") +
+    " • Conversões: [kgf/cm²] → kN/cm² (×0,00980665) e MPa (×0,0980665)."
+)
+
+# ===================== Rodapé do APP (normas + assinatura)
 st.markdown("---")
 st.markdown(
     "**Normas de referência (argamassa):**  \n"
@@ -523,11 +530,4 @@ st.markdown(
     "SISTEMA DESENVOLVIDO PELA HABISOLUTE ENGENHARIA E CONTROLE TECNOLÓGICO"
     "</em></div>",
     unsafe_allow_html=True
-)
-
-# ===================== Rodapé diagnóstico =====================
-st.caption(
-    ("PDF direto ativo ✅" if not MISSING else "PDF direto inativo ❌") +
-    (" • Dependência faltando: " + ", ".join(MISSING) if MISSING else "") +
-    " • Conversões: [kgf/cm²] → kN/cm² (×0,00980665) e MPa (×0,0980665)."
 )
