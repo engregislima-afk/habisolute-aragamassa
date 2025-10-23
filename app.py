@@ -399,40 +399,35 @@ with b2:
 with b3:
     if not st.session_state.registros:
         st.download_button("📄 Exportar para PDF", data=b"", file_name="vazio.pdf", disabled=True)
+    elif MISSING:
+        st.download_button("📄 Exportar para PDF", data=b"", file_name="rupturas.pdf", disabled=True)
+        st.error("Para PDF direto, instale: " + ", ".join(MISSING))
     else:
-        if MISSING:
-            st.download_button("📄 Exportar para PDF", data=b"", file_name="rupturas.pdf", disabled=True)
-            st.error("Para PDF direto, instale: " + ", ".join(MISSING))
-        else:
-            df_pdf = pd.DataFrame(st.session_state.registros)
-            pdf_bytes = build_pdf(
-                st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao, df_pdf
-            )
-            data_str = st.session_state.data_obra.strftime("%Y%m%d")
-            safe_obra = _safe_filename(st.session_state.obra)
-            fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf" if safe_obra else f"Lote_Rupturas_{data_str}.pdf"
+        # Gera o PDF
+        df_pdf = pd.DataFrame(st.session_state.registros)
+        pdf_bytes = build_pdf(
+            st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao, df_pdf
+        )
+        # Nome do arquivo
+        data_str = st.session_state.data_obra.strftime("%Y%m%d")
+        safe_obra = _safe_filename(st.session_state.obra)
+        fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf" if safe_obra else f"Lote_Rupturas_{data_str}.pdf"
 
-            # ... depois de obter pdf_bytes e fname ...
-pdf_bytes = _as_bytes_pdf := pdf_bytes  # só para clareza; pdf_bytes já vem do build_pdf
+        # 1) Download direto do PDF (como arquivo em memória)
+        pdf_file = BytesIO(pdf_bytes)
+        st.download_button("📄 Exportar para PDF", data=pdf_file, file_name=fname, mime="application/pdf")
 
-# Para o Streamlit aceitar sem erro, passe um arquivo (BytesIO) ao download_button
-pdf_file = BytesIO(pdf_bytes)
-
-# 1) Download direto do PDF (usando arquivo em memória)
-st.download_button("📄 Exportar para PDF", data=pdf_file, file_name=fname, mime="application/pdf")
-
-# 2) Abrir para imprimir em nova aba (data URI)
-b64 = base64.b64encode(pdf_bytes).decode("utf-8")
-pdf_data_uri = f"data:application/pdf;base64,{b64}"
-st.markdown(
-    f"""<a href="{pdf_data_uri}" target="_blank" 
-           style="display:inline-block;margin-top:8px;padding:.55rem .9rem;border-radius:12px;
-                  background:{ACCENT};color:#111;font-weight:800;text-decoration:none;">
-           🖨️ Imprimir (abrir PDF)
-        </a>""",
-    unsafe_allow_html=True
-)
-            )
+        # 2) Abrir para imprimir em nova aba (data URI)
+        b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+        pdf_data_uri = f"data:application/pdf;base64,{b64}"
+        st.markdown(
+            f"""<a href="{pdf_data_uri}" target="_blank" 
+                   style="display:inline-block;margin-top:8px;padding:.55rem .9rem;border-radius:12px;
+                          background:{ACCENT};color:#111;font-weight:800;text-decoration:none;">
+                   🖨️ Imprimir (abrir PDF)
+                </a>""",
+            unsafe_allow_html=True
+        )
 
 # ===================== Rodapé diagnóstico =====================
 st.caption(
