@@ -1,4 +1,4 @@
-# app.py — Sistema de Rupturas de Argamassa Habisolute
+# app.py — 🏗️Sistema de Rupturas de Argamassa Habisolute
 from __future__ import annotations
 from datetime import date
 from statistics import mean, pstdev
@@ -22,7 +22,7 @@ except Exception:
 
 # ===================== Estado & Tema =====================
 ACCENT = "#d75413"
-st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🧱", layout="centered")
+st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🏗️", layout="centered")
 
 if "theme" not in st.session_state: st.session_state.theme = "Escuro"
 if "obra" not in st.session_state: st.session_state.obra = ""
@@ -149,7 +149,7 @@ html:root:not(.dark) div[data-testid="stAlert"] {{ border:1px solid rgba(0,0,0,.
 
 # ===== Título (laranja garantido)
 st.markdown(
-    "<h1 id='app-title' style='margin:0'>Sistema de Rupturas de Argamassa Habisolute</h1>",
+    "<h1 id='app-title' style='margin:0'>🏗️Sistema de Rupturas de Argamassa Habisolute</h1>",
     unsafe_allow_html=True
 )
 st.markdown(f"""
@@ -253,7 +253,7 @@ with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=Fals
 
 # ===================== Dados da obra =====================
 with st.form("obra_form"):
-    st.subheader("Dados da obra")
+    st.subheader("✅Dados da obra")
     a,b,c = st.columns([2,1,1])
     obra = a.text_input("Nome da obra", st.session_state.obra, placeholder="Ex.: Residencial Jardim Tropical")
     data_obra = b.date_input("Data", st.session_state.data_obra, format="DD/MM/YYYY")
@@ -278,7 +278,7 @@ with st.form("obra_form"):
 # ===================== Lançar CP =====================
 st.info(f"CPs no lote: **{len(st.session_state.registros)}/12**")
 with st.form("cp_form", clear_on_submit=True):
-    st.subheader("Lançar ruptura (apenas kgf)")
+    st.subheader("✅Lançar ruptura (apenas kgf)")
     codigo = st.text_input("Código do CP", max_chars=32, placeholder="Ex.: A039.258 / H682 / 037.421")
     carga  = st.number_input("Carga de ruptura (kgf)", min_value=0.0, step=0.1, format="%.3f")
     if carga and st.session_state.area_padrao:
