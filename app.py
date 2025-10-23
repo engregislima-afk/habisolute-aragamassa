@@ -6,12 +6,11 @@ from statistics import mean, pstdev
 import unicodedata
 import re
 import base64
+from io import BytesIO
 
 import streamlit as st
 import pandas as pd
 import altair as alt
-
-from io import BytesIO
 
 # ===================== Dependência obrigatória (PDF) =====================
 MISSING = []
@@ -59,66 +58,29 @@ st.markdown(f"""
   --text:{TEXT};
 }}
 
-html, body, [class*="block-container"] {{
-  background: var(--surface) !important;
-  color: var(--text) !important;
-}}
+html, body, [class*="block-container"] {{ background: var(--surface) !important; color: var(--text) !important; }}
+h1,h2,h3,h4, label, legend, .stMarkdown p {{ color: var(--text) !important; }}
 
-h1,h2,h3,h4, label, legend, .stMarkdown p {{
-  color: var(--text) !important;
-}}
-
-div[data-testid="stSidebar"] {{
-  background: var(--surface) !important;
-  color: var(--text) !important;
-  border-right: 1px solid var(--border);
-}}
-
-div[data-testid="stForm"] {{
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 1rem;
-}}
+div[data-testid="stSidebar"] {{ background: var(--surface) !important; color: var(--text) !important; border-right: 1px solid var(--border); }}
+div[data-testid="stForm"] {{ background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 1rem; }}
 
 .stButton>button, .stDownloadButton>button {{
-  background: var(--accent);
-  color: #111 !important;
-  border: none; border-radius: 14px;
-  padding: .65rem 1rem; font-weight: 800;
-  box-shadow: 0 6px 16px rgba(215,84,19,.35);
+  background: var(--accent); color:#111 !important; border:none; border-radius:14px;
+  padding:.65rem 1rem; font-weight:800; box-shadow:0 6px 16px rgba(215,84,19,.35);
 }}
-.stButton>button:disabled, .stDownloadButton>button:disabled {{
-  opacity:.55; cursor:not-allowed; box-shadow:none;
-}}
+.stButton>button:disabled, .stDownloadButton>button:disabled {{ opacity:.55; cursor:not-allowed; box-shadow:none; }}
 
 /* Inputs coerentes com o tema */
-input, textarea, select {{
-  color: var(--text) !important;
-  background: var(--card) !important;
-  border-color: var(--border) !important;
-}}
+input, textarea, select {{ color: var(--text) !important; background: var(--card) !important; border-color: var(--border) !important; }}
 ::placeholder {{ color: color-mix(in oklab, var(--text), transparent 50%); }}
-input[disabled], textarea[disabled] {{
-  opacity: .85;
-  color: color-mix(in oklab, var(--text), white 25%) !important;
-}}
+input[disabled], textarea[disabled] {{ opacity:.85; color: color-mix(in oklab, var(--text), white 25%) !important; }}
 
 /* Dataframe */
-[data-testid="stDataFrame"] thead th, 
-[data-testid="stDataFrame"] tbody td {{
-  color: var(--text) !important;
-}}
-[data-testid="stDataFrame"] tbody tr {{
-  background: var(--card) !important;
-}}
+[data-testid="stDataFrame"] thead th, [data-testid="stDataFrame"] tbody td {{ color: var(--text) !important; }}
+[data-testid="stDataFrame"] tbody tr {{ background: var(--card) !important; }}
 
 .kpi {{ display:flex; gap:12px; flex-wrap:wrap; }}
-.kpi>div {{
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px; padding:.65rem 1rem;
-}}
+.kpi>div {{ background: var(--card); border:1px solid var(--border); border-radius:14px; padding:.65rem 1rem; }}
 .small-note {{ opacity:.85; font-size:.86rem }}
 </style>
 """, unsafe_allow_html=True)
@@ -143,8 +105,7 @@ def _dp(v):
 def _latin1_safe(text: str) -> str:
     """Mantém PDF robusto caso haja caracteres fora de Latin-1 (Arial core)."""
     try:
-        text.encode("latin1")
-        return text
+        text.encode("latin1"); return text
     except Exception:
         norm = unicodedata.normalize("NFKD", text)
         ascii_like = "".join(ch for ch in norm if not unicodedata.combining(ch))
@@ -157,14 +118,15 @@ def _safe_filename(s: str) -> str:
     return s[:80] if s else "relatorio"
 
 def _as_bytes(pdf_obj) -> bytes:
-    """Garante bytes para qualquer versão do fpdf2 (str/bytes/bytearray)."""
+    """Compat: fpdf2 pode retornar str (latin1) ou bytes para output(dest='S')."""
     out = pdf_obj.output(dest="S")
-    if isinstance(out, bytes):
-        return out
-    if isinstance(out, bytearray):
-        return bytes(out)
-    # fpdf2 antigo pode devolver str latin1
+    if isinstance(out, bytes): return out
+    if isinstance(out, bytearray): return bytes(out)
     return out.encode("latin1", errors="ignore")
+
+def _hex_to_rgb(hexstr: str):
+    s = hexstr.lstrip("#")
+    return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
 
 # ===================== Conversor rápido =====================
 with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=False):
@@ -214,8 +176,7 @@ with st.form("cp_form", clear_on_submit=True):
     carga  = st.number_input("Carga de ruptura (kgf)", min_value=0.0, step=0.1, format="%.3f")
     if carga and st.session_state.area_padrao:
         _, knp, mpp = tensoes_from_kgf(carga, st.session_state.area_padrao)
-        st.caption(f"→ Conversões (área {st.session_state.area_padrao:.2f} cm²): "
-                   f"**{knp:.5f} kN/cm²** • **{mpp:.4f} MPa**")
+        st.caption(f"→ Conversões (área {st.session_state.area_padrao:.2f} cm²): **{knp:.5f} kN/cm²** • **{mpp:.4f} MPa**")
     ok = st.form_submit_button("Adicionar CP", disabled=(len(st.session_state.registros)>=12))
     if ok:
         if not st.session_state.obra: st.error("Preencha os dados da obra.")
@@ -250,7 +211,6 @@ if st.session_state.registros:
             "mpa": st.column_config.NumberColumn("MPa", disabled=True, format="%.4f"),
         }
     )
-    # aplica edições
     if not edited.equals(df[edited.columns]):
         new_regs = []
         for row in edited.itertuples(index=False):
@@ -266,7 +226,6 @@ if st.session_state.registros:
         st.session_state.registros = new_regs
         df = pd.DataFrame(st.session_state.registros)
 
-    # exclusão por códigos
     with st.expander("🗑️ Excluir CPs", expanded=False):
         codigos = [r["codigo_cp"] for r in st.session_state.registros]
         opt = st.multiselect("Selecione os códigos a excluir", codigos)
@@ -274,76 +233,33 @@ if st.session_state.registros:
             st.session_state.registros = [r for r in st.session_state.registros if r["codigo_cp"] not in set(opt)]
             st.rerun()
 
-    # KPIs
     a,b,c = st.columns(3)
     with a: st.metric("Média (kN/cm²)", f"{mean(df['kn_cm2']):.4f}")
     with b: st.metric("Média (MPa)",    f"{mean(df['mpa']):.3f}")
     with c:
-        dp = _dp(df["mpa"].tolist())
-        st.metric("DP (MPa)", f"{(dp if dp is not None else 0.0):.3f}")
+        dp = _dp(df["mpa"].tolist()); st.metric("DP (MPa)", f"{(dp if dp is not None else 0.0):.3f}")
 
     st.subheader("Gráfico de ruptura (MPa por CP)")
     chart_df = pd.DataFrame({"Código CP": df["codigo_cp"].values, "MPa": df["mpa"].values})
-
-    # Cores de eixos/grades conforme o tema
     axis_color = TEXT
     grid_color = "rgba(255,255,255,0.20)" if st.session_state.theme == "Escuro" else "rgba(0,0,0,0.12)"
-
     y_max = max(chart_df["MPa"]) * 1.15 if len(chart_df) else 1
     points = (
-        alt.Chart(chart_df)
-          .mark_point(size=90, filled=True, color=ACCENT)
-          .encode(
-              x=alt.X("Código CP:N", sort=None, title="Código do CP"),
-              y=alt.Y("MPa:Q", scale=alt.Scale(domain=[0, y_max]), title="MPa"),
-              tooltip=["Código CP", alt.Tooltip("MPa:Q", format=".3f")]
-          )
-          .properties(height=340)
-          .configure_axis(
-              labelColor=axis_color,
-              titleColor=axis_color,
-              gridColor=grid_color,
-              domainColor=axis_color
-          )
-          .configure_title(color=axis_color)
-          .configure_legend(labelColor=axis_color, titleColor=axis_color)
+        alt.Chart(chart_df).mark_point(size=90, filled=True, color=ACCENT)
+        .encode(
+            x=alt.X("Código CP:N", sort=None, title="Código do CP"),
+            y=alt.Y("MPa:Q", scale=alt.Scale(domain=[0, y_max]), title="MPa"),
+            tooltip=["Código CP", alt.Tooltip("MPa:Q", format=".3f")]
+        )
+        .properties(height=340)
+        .configure_axis(labelColor=axis_color, titleColor=axis_color, gridColor=grid_color, domainColor=axis_color)
+        .configure_title(color=axis_color)
+        .configure_legend(labelColor=axis_color, titleColor=axis_color)
     )
     st.altair_chart(points, use_container_width=True)
     st.divider()
 
 # ===================== PDF (fpdf2 desenhando o gráfico) =====================
-    # Pontos + rótulos de CP (centralizados no ponto)
-    r = int(accent[1:3], 16); g = int(accent[3:5], 16); b = int(accent[5:7], 16)
-    pdf.set_fill_color(r, g, b)
-
-    n = len(ys)
-    dx = 6.0  # afastamento lateral do eixo Y (ajuste fino à vontade)
-    for i, val in enumerate(ys):
-        px = x + (w * (i / max(1, n - 1)))
-        py = y + h - (h * (val - y_min) / max(1e-9, (y_max - y_min)))
-        pdf.ellipse(px - 1.8, py - 1.8, 3.6, 3.6, style="F")
-
-        label = _latin1_safe(codes[i][:14])
-        tw = pdf.get_string_width(label)  # largura da string no tamanho de fonte atual
-
-        if _HAS_ROTATE:
-            # Rotacionado: para centralizar, somamos tw/2 no pivot_y
-            pivot_x = px + dx
-            pivot_y = y + h + 16 + (tw / 2.0)   # ↓ desce e centraliza na âncora
-            pdf.rotate(90, pivot_x, pivot_y)
-            pdf.text(pivot_x, pivot_y, label)
-            pdf.rotate(0)
-        else:
-            # Sem rotação: centraliza pela metade da largura
-            pdf.text(px - (tw / 2.0), y + h + 12, label)
-
-    # Títulos do gráfico
-    pdf.set_font("Arial", "B", 11)
-    pdf.text(x, y - 1, "Gráfico de ruptura (MPa por CP)")  # mais longe da tabela
-    pdf.set_font("Arial", size=9)
-    pdf.text(x + w / 2 - 12, y + h + 26, "Código do CP")   # mais abaixo dos rótulos
-
-
 def draw_scatter_on_pdf(
     pdf: "FPDF",
     df: pd.DataFrame,
@@ -354,7 +270,7 @@ def draw_scatter_on_pdf(
     accent: str | None = None,
 ) -> None:
     """Desenha o gráfico (MPa por CP) no PDF com espaçamentos ajustados e rótulos centralizados."""
-    accent_hex = (accent or ACCENT)  # fallback
+    accent_hex = (accent or ACCENT)
 
     # Moldura + grade
     pdf.set_draw_color(220, 220, 220)
@@ -378,23 +294,21 @@ def draw_scatter_on_pdf(
         pdf.text(x - 7.5, yy + 2.2, f"{val:.1f}")
 
     # Pontos + rótulos de CP (centralizados e descolados do eixo Y)
-    r = int(accent_hex[1:3], 16)
-    g = int(accent_hex[3:5], 16)
-    b = int(accent_hex[5:7], 16)
+    r, g, b = _hex_to_rgb(accent_hex)
     pdf.set_fill_color(r, g, b)
 
     n = len(ys)
-    dx = 6.0  # ajuste lateral para afastar do eixo Y
+    dx = 6.0  # afastamento lateral do eixo Y (aumente para 8.0 se quiser)
     for i, val in enumerate(ys):
         px = x + (w * (i / max(1, n - 1)))
         py = y + h - (h * (val - y_min) / max(1e-9, (y_max - y_min)))
         pdf.ellipse(px - 1.8, py - 1.8, 3.6, 3.6, style="F")
 
         label = _latin1_safe(codes[i][:14])
-        tw = pdf.get_string_width(label)  # largura do texto (px)
+        tw = pdf.get_string_width(label)  # largura do texto na fonte atual
 
         if _HAS_ROTATE:
-            # centraliza verticalmente: somamos tw/2 no pivot_y
+            # centraliza verticalmente o rótulo no ponto (pivot_y += tw/2)
             pivot_x = px + dx
             pivot_y = y + h + 16 + (tw / 2.0)
             pdf.rotate(90, pivot_x, pivot_y)
@@ -409,6 +323,58 @@ def draw_scatter_on_pdf(
     pdf.text(x, y - 1, "Gráfico de ruptura (MPa por CP)")
     pdf.set_font("Arial", size=9)
     pdf.text(x + w / 2 - 12, y + h + 26, "Código do CP")
+
+
+def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> bytes:
+    pdf = FPDF("P", "mm", "A4")
+
+    # Margens & quebra automática
+    left, top, right = 20, 22, 20
+    pdf.set_margins(left, top, right)
+    pdf.set_auto_page_break(auto=True, margin=18)
+
+    pdf.add_page()
+
+    # Cabeçalho
+    pdf.set_font("Arial", "B", 15)
+    pdf.cell(0, 8, _latin1_safe("Rupturas de Argamassa  Lote"), ln=1, align="C")
+
+    pdf.set_font("Arial", size=11)
+    info = f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²"
+    pdf.cell(0, 6, _latin1_safe(info), ln=1, align="C")
+    pdf.ln(6)
+
+    # Tabela
+    hdr = ["#", "Código CP", "Carga (kgf)", "Área (cm²)", "kN/cm²", "MPa"]
+    wid = [10, 60, 30, 24, 28, 24]
+    pdf.set_font("Arial", "B", 10)
+    for h, w in zip(hdr, wid):
+        pdf.cell(w, 7, _latin1_safe(h), 1, 0, "C")
+    pdf.ln()
+    pdf.set_font("Arial", size=10)
+    for i, row in enumerate(df.itertuples(index=False), 1):
+        cells = [
+            str(i),
+            _latin1_safe(row.codigo_cp),
+            f"{row.carga_kgf:.3f}",
+            f"{row.area_cm2:.2f}",
+            f"{row.kn_cm2:.4f}",
+            f"{row.mpa:.3f}",
+        ]
+        for c, w in zip(cells, wid):
+            pdf.cell(w, 6, c, 1, 0, "C")
+        pdf.ln()
+
+    # Gráfico (com mais “respiro” após a tabela)
+    pdf.ln(12)
+    gy = pdf.get_y() + 6
+    gx = left + 2
+    gw = 180 - (left - 15)
+    gh = 78
+    draw_scatter_on_pdf(pdf, df, x=gx, y=gy, w=gw, h=gh, accent=ACCENT)
+    pdf.set_y(gy + gh + 30)
+
+    return _as_bytes(pdf)
 
 # ===================== Ações (botões + PDF/Imprimir) =====================
 b1, b2, b3 = st.columns([1,1,1])
@@ -432,25 +398,22 @@ with b3:
         st.download_button("📄 Exportar para PDF", data=b"", file_name="rupturas.pdf", disabled=True)
         st.error("Para PDF direto, instale: " + ", ".join(MISSING))
     else:
-        # Gera o PDF
         df_pdf = pd.DataFrame(st.session_state.registros)
-        pdf_bytes = build_pdf(
-            st.session_state.obra, st.session_state.data_obra, st.session_state.area_padrao, df_pdf
-        )
-        # Nome do arquivo
+        pdf_bytes = build_pdf(st.session_state.obra, st.session_state.data_obra,
+                              st.session_state.area_padrao, df_pdf)
         data_str = st.session_state.data_obra.strftime("%Y%m%d")
         safe_obra = _safe_filename(st.session_state.obra)
         fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf" if safe_obra else f"Lote_Rupturas_{data_str}.pdf"
 
-        # 1) Download direto do PDF (como arquivo em memória)
-        pdf_file = BytesIO(pdf_bytes)
-        st.download_button("📄 Exportar para PDF", data=pdf_file, file_name=fname, mime="application/pdf")
+        # 1) Download direto (arquivo em memória)
+        st.download_button("📄 Exportar para PDF", data=BytesIO(pdf_bytes),
+                           file_name=fname, mime="application/pdf")
 
-        # 2) Abrir para imprimir em nova aba (data URI)
+        # 2) Abrir para imprimir em nova aba
         b64 = base64.b64encode(pdf_bytes).decode("utf-8")
         pdf_data_uri = f"data:application/pdf;base64,{b64}"
         st.markdown(
-            f"""<a href="{pdf_data_uri}" target="_blank" 
+            f"""<a href="{pdf_data_uri}" target="_blank"
                    style="display:inline-block;margin-top:8px;padding:.55rem .9rem;border-radius:12px;
                           background:{ACCENT};color:#111;font-weight:800;text-decoration:none;">
                    🖨️ Imprimir (abrir PDF)
