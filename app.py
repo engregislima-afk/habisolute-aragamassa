@@ -105,6 +105,31 @@ div[data-testid="stSidebar"] [data-baseweb="radio"] *,
 div[data-testid="stSidebar"] .stRadio label {{
   color: var(--sidebar-text) !important;
 }}
+st.markdown(f"""
+<style>
+/* === FIX DEFINITIVO: Sidebar legível no modo escuro ===
+   Força cor e remove opacidade/filters das labels e textos */
+div[data-testid="stSidebar"] h1,
+div[data-testid="stSidebar"] h2,
+div[data-testid="stSidebar"] h3,
+div[data-testid="stSidebar"] h4,
+div[data-testid="stSidebar"] p,
+div[data-testid="stSidebar"] label,
+div[data-testid="stSidebar"] .stMarkdown,
+div[data-testid="stSidebar"] [data-baseweb="radio"] label,
+div[data-testid="stSidebar"] [data-baseweb="radio"] span {{
+  color: {('#FFC08E' if st.session_state.theme == 'Escuro' else ACCENT)} !important;  /* laranja claro no escuro; ACCENT no claro */
+  opacity: 1 !important;
+  filter: none !important;
+}}
+
+/* opcional: deixa os círculos do radio com mais contraste no escuro */
+div[data-testid="stSidebar"] [data-baseweb="radio"] svg {{
+  opacity: 1 !important;
+  filter: none !important;
+}}
+</style>
+""", unsafe_allow_html=True)
 
 /* ===== Cards ===== */
 div[data-testid="stForm"] {{
