@@ -52,27 +52,84 @@ with st.sidebar:
         placeholder="Ex.: Resultados referem-se exclusivamente às amostras ensaiadas; reprodução somente na íntegra; ±0,90 MPa; NBR 13279..."
     )
 
+# Paleta por tema (com alto contraste)
 SURFACE, CARD, BORDER, TEXT = (
-    ("#0a0a0a", "#111213", "rgba(255,255,255,0.10)", "#f5f5f5")
+    ("#0a0a0a", "#111213", "rgba(255,255,255,0.10)", "#f5f5f5")  # Escuro
     if st.session_state.theme == "Escuro"
-    else ("#fafafa", "#ffffff", "rgba(0,0,0,0.10)", "#111111")
+    else ("#ffffff", "#fafafa", "rgba(0,0,0,0.12)", "#111111")    # Claro
 )
 
+# CSS global
 st.markdown(f"""
 <style>
-:root {{ --accent:{ACCENT}; --surface:{SURFACE}; --card:{CARD}; --border:{BORDER}; --text:{TEXT}; }}
-html, body, [class*="block-container"] {{ background: var(--surface); color: var(--text); }}
-h1,h2,h3,h4{{color:var(--text)}}
-.stButton>button, .stDownloadButton>button {{
-  background:var(--accent); color:#111; border:none; border-radius:14px;
-  padding:.65rem 1rem; font-weight:800; box-shadow:0 6px 16px rgba(215,84,19,.35);
+:root {{
+  --accent:{ACCENT};
+  --surface:{SURFACE};
+  --card:{CARD};
+  --border:{BORDER};
+  --text:{TEXT};
 }}
-.stButton>button:disabled, .stDownloadButton>button:disabled {{ opacity:.55; cursor:not-allowed; box-shadow:none; }}
+
+html, body, [class*="block-container"] {{
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}}
+
+h1,h2,h3,h4, label, legend, .stMarkdown p {{
+  color: var(--text) !important;
+}}
+
+div[data-testid="stSidebar"] {{
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-right: 1px solid var(--border);
+}}
+
 div[data-testid="stForm"] {{
-  background:var(--card); border:1px solid var(--border); border-radius:18px; padding:1rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 1rem;
 }}
+
+.stButton>button, .stDownloadButton>button {{
+  background: var(--accent);
+  color: #111 !important;
+  border: none; border-radius: 14px;
+  padding: .65rem 1rem; font-weight: 800;
+  box-shadow: 0 6px 16px rgba(215,84,19,.35);
+}}
+.stButton>button:disabled, .stDownloadButton>button:disabled {{
+  opacity:.55; cursor:not-allowed; box-shadow:none;
+}}
+
+/* Inputs coerentes com o tema */
+input, textarea, select {{
+  color: var(--text) !important;
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+}}
+::placeholder {{ color: color-mix(in oklab, var(--text), transparent 50%); }}
+input[disabled], textarea[disabled] {{
+  opacity: .85;
+  color: color-mix(in oklab, var(--text), white 25%) !important;
+}}
+
+/* Dataframe */
+[data-testid="stDataFrame"] thead th, 
+[data-testid="stDataFrame"] tbody td {{
+  color: var(--text) !important;
+}}
+[data-testid="stDataFrame"] tbody tr {{
+  background: var(--card) !important;
+}}
+
 .kpi {{ display:flex; gap:12px; flex-wrap:wrap; }}
-.kpi>div {{ background:var(--card); border:1px solid var(--border); border-radius:14px; padding:.65rem 1rem; }}
+.kpi>div {{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px; padding:.65rem 1rem;
+}}
 .small-note {{ opacity:.85; font-size:.86rem }}
 </style>
 """, unsafe_allow_html=True)
@@ -101,7 +158,6 @@ def _latin1_safe(text: str) -> str:
         text.encode("latin1")
         return text
     except Exception:
-        # Remove marcas e troca caracteres “problemáticos”
         norm = unicodedata.normalize("NFKD", text)
         ascii_like = "".join(ch for ch in norm if not unicodedata.combining(ch))
         return ascii_like.encode("latin1", errors="ignore").decode("latin1", errors="ignore")
@@ -183,7 +239,7 @@ with st.form("cp_form", clear_on_submit=True):
 if st.session_state.registros:
     df = pd.DataFrame(st.session_state.registros)
     df = df.copy()
-    # editor simples (permite corrigir carga/código na hora)
+
     st.subheader("Lote atual (editável)")
     edited = st.data_editor(
         df[["codigo_cp","carga_kgf","area_cm2","kn_cm2","mpa"]],
@@ -197,7 +253,7 @@ if st.session_state.registros:
             "mpa": st.column_config.NumberColumn("MPa", disabled=True, format="%.4f"),
         }
     )
-    # aplica edições (recalcula tensões se carga mudou)
+    # aplica edições
     if not edited.equals(df[edited.columns]):
         new_regs = []
         for row in edited.itertuples(index=False):
@@ -213,19 +269,15 @@ if st.session_state.registros:
         st.session_state.registros = new_regs
         df = pd.DataFrame(st.session_state.registros)
 
-    # exclusão de linhas selecionadas
+    # exclusão por códigos
     with st.expander("🗑️ Excluir CPs", expanded=False):
-        if st.button("Excluir selecionados (última seleção no editor)"):
-            # Como st.data_editor não expõe seleção diretamente, ofereço exclusão por código:
-            codigos = [r["codigo_cp"] for r in st.session_state.registros]
-            opt = st.multiselect("Selecione os códigos a excluir", codigos)
-            if st.button("Confirmar exclusão"):
-                st.session_state.registros = [r for r in st.session_state.registros if r["codigo_cp"] not in set(opt)]
-                st.rerun()
+        codigos = [r["codigo_cp"] for r in st.session_state.registros]
+        opt = st.multiselect("Selecione os códigos a excluir", codigos)
+        if st.button("Confirmar exclusão"):
+            st.session_state.registros = [r for r in st.session_state.registros if r["codigo_cp"] not in set(opt)]
+            st.rerun()
 
-    view = df[["codigo_cp","carga_kgf","area_cm2","kn_cm2","mpa"]].copy()
-    view.columns = ["Código CP","Carga (kgf)","Área (cm²)","kN/cm²","MPa"]
-
+    # KPIs
     a,b,c = st.columns(3)
     with a: st.metric("Média (kN/cm²)", f"{mean(df['kn_cm2']):.4f}")
     with b: st.metric("Média (MPa)",    f"{mean(df['mpa']):.3f}")
@@ -235,15 +287,29 @@ if st.session_state.registros:
 
     st.subheader("Gráfico de ruptura (MPa por CP)")
     chart_df = pd.DataFrame({"Código CP": df["codigo_cp"].values, "MPa": df["mpa"].values})
+
+    # Cores de eixos/grades conforme o tema
+    axis_color = TEXT
+    grid_color = "rgba(255,255,255,0.20)" if st.session_state.theme == "Escuro" else "rgba(0,0,0,0.12)"
+
     y_max = max(chart_df["MPa"]) * 1.15 if len(chart_df) else 1
     points = (
-        alt.Chart(chart_df).mark_point(size=90, filled=True, color=ACCENT)
-        .encode(
-            x=alt.X("Código CP:N", sort=None, title="Código do CP"),
-            y=alt.Y("MPa:Q", scale=alt.Scale(domain=[0, y_max]), title="MPa"),
-            tooltip=["Código CP", alt.Tooltip("MPa:Q", format=".3f")]
-        )
-        .properties(height=340)
+        alt.Chart(chart_df)
+          .mark_point(size=90, filled=True, color=ACCENT)
+          .encode(
+              x=alt.X("Código CP:N", sort=None, title="Código do CP"),
+              y=alt.Y("MPa:Q", scale=alt.Scale(domain=[0, y_max]), title="MPa"),
+              tooltip=["Código CP", alt.Tooltip("MPa:Q", format=".3f")]
+          )
+          .properties(height=340)
+          .configure_axis(
+              labelColor=axis_color,
+              titleColor=axis_color,
+              gridColor=grid_color,
+              domainColor=axis_color
+          )
+          .configure_title(color=axis_color)
+          .configure_legend(labelColor=axis_color, titleColor=axis_color)
     )
     st.altair_chart(points, use_container_width=True)
     st.divider()
@@ -349,17 +415,15 @@ with c2:
 
 with c3:
     if st.session_state.registros:
-        # salvar snapshot JSON do lote
         df_json = pd.DataFrame(st.session_state.registros).to_json(orient="records", force_ascii=False)
-        st.download_button("Baixar Lote (.json)", data=df_json.encode("utf-8"), file_name="rupturas_lote.json", mime="application/json")
+        st.download_button("Baixar Lote (.json)", data=df_json.encode("utf-8"),
+                           file_name="rupturas_lote.json", mime="application/json")
 
 with c4:
-    # carregar snapshot JSON
     up_json = st.file_uploader("Carregar Lote (.json)", type=["json"], label_visibility="collapsed")
     if up_json is not None:
         try:
             loaded = pd.read_json(up_json).to_dict(orient="records")
-            # saneia chaves mínimas
             ok = []
             for r in loaded:
                 if {"codigo_cp","carga_kgf","area_cm2"}.issubset(r):
@@ -381,7 +445,7 @@ with c4:
         except Exception as e:
             st.error(f"Erro ao ler JSON: {e}")
 
-# botão PDF
+# Botão PDF
 if st.session_state.registros:
     if MISSING:
         st.download_button("📄 Exportar para PDF", data=b"", file_name="rupturas.pdf", disabled=True)
