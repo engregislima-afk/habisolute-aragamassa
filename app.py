@@ -315,7 +315,7 @@ if st.session_state.registros:
 def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame,
                         x: float, y: float, w: float, h: float,
                         accent="#d75413"):
-    """Desenha o gráfico de pontos (MPa por CP) diretamente no PDF, com respiro."""
+    """Desenha o gráfico (MPa por CP) no PDF com espaçamentos ajustados."""
     # moldura + grade
     pdf.set_draw_color(220, 220, 220)
     pdf.rect(x, y, w, h)
@@ -335,7 +335,7 @@ def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame,
         yy = y + h - (h * k / ticks)
         val = y_min + (y_max - y_min) * k / ticks
         pdf.line(x, yy, x + w, yy)
-        pdf.text(x - 7, yy + 2.2, f"{val:.1f}")
+        pdf.text(x - 7.5, yy + 2.2, f"{val:.1f}")
 
     # pontos
     r = int(accent[1:3], 16); g = int(accent[3:5], 16); b = int(accent[5:7], 16)
@@ -349,20 +349,22 @@ def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame,
         label = _latin1_safe(codes[i][:14])
         if _HAS_ROTATE:
             try:
-                # escreve o rótulo do CP abaixo do eixo X, girado
-                pdf.rotate(90, px, y + h + 10)
-                pdf.text(px, y + h + 10, label)
+                # ↓ Desce os rótulos do eixo X (códigos)
+                pdf.rotate(90, px, y + h + 16)
+                pdf.text(px, y + h + 16, label)
                 pdf.rotate(0)
             except Exception:
-                pdf.text(px - (len(label)*1.2), y + h + 7, label)
+                pdf.text(px - (len(label)*1.2), y + h + 12, label)
         else:
-            pdf.text(px - (len(label)*1.2), y + h + 7, label)
+            pdf.text(px - (len(label)*1.2), y + h + 12, label)
 
-    # títulos do gráfico
+    # ↓ Título mais baixo (1 mm acima da moldura, longe da tabela)
     pdf.set_font("Arial", "B", 11)
-    pdf.text(x, y - 5, "Gráfico de ruptura (MPa por CP)")
+    pdf.text(x, y - 1, "Gráfico de ruptura (MPa por CP)")
+
+    # ↓ Rótulo do eixo X mais afastado
     pdf.set_font("Arial", size=9)
-    pdf.text(x + w/2 - 12, y + h + 16, "Código do CP")
+    pdf.text(x + w/2 - 12, y + h + 24, "Código do CP")
 
 
 def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> bytes:
@@ -413,7 +415,7 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
     gh = 78                       # um pouco mais alto
 
     draw_scatter_on_pdf(pdf, df, x=gx, y=gy, w=gw, h=gh, accent=ACCENT)
-    pdf.set_y(gy + gh + 18)       # avança o cursor para baixo do gráfico
+    pdf.set_y(gy + gh + 30)       # avança o cursor para baixo do gráfico
 
     return _as_bytes(pdf)
 
