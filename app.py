@@ -158,7 +158,7 @@ div[role="textbox"] *, .stTextInput input, .stDateInput input, .stNumberInput in
 
 # ===== Título principal em laranja (mantém como você pediu)
 st.markdown(
-    f"<h1 style='margin:0;color:{ACCENT}'>Sistema de Rupturas de Argamassa Habisolute</h1>",
+    f"<h1 style='margin:0;color:{ACCENT}'>🏗️Sistema de Rupturas de Argamassa Habisolute</h1>",
     unsafe_allow_html=True
 )
 st.markdown("""
