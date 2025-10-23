@@ -293,12 +293,12 @@ def draw_scatter_on_pdf(
         pdf.line(x, yy, x + w, yy)
         pdf.text(x - 7.5, yy + 2.2, f"{val:.1f}")
 
-    # Pontos + rótulos de CP (centralizados e descolados do eixo Y)
+        # Pontos + rótulos de CP (ALINHADOS NO MESMO X DO PONTO)
     r, g, b = _hex_to_rgb(accent_hex)
     pdf.set_fill_color(r, g, b)
 
     n = len(ys)
-    dx = 6.0  # afastamento lateral do eixo Y (aumente para 8.0 se quiser)
+    LABEL_GAP = 18  # distância vertical do eixo X até o início do rótulo
     for i, val in enumerate(ys):
         px = x + (w * (i / max(1, n - 1)))
         py = y + h - (h * (val - y_min) / max(1e-9, (y_max - y_min)))
@@ -308,15 +308,16 @@ def draw_scatter_on_pdf(
         tw = pdf.get_string_width(label)  # largura do texto na fonte atual
 
         if _HAS_ROTATE:
-            # centraliza verticalmente o rótulo no ponto (pivot_y += tw/2)
-            pivot_x = px + dx
-            pivot_y = y + h + 16 + (tw / 2.0)
+            # nada de deslocamento lateral: mesmo X do ponto
+            pivot_x = px
+            # centraliza verticalmente: somamos tw/2 ao pivot_y
+            pivot_y = y + h + LABEL_GAP + (tw / 2.0)
             pdf.rotate(90, pivot_x, pivot_y)
             pdf.text(pivot_x, pivot_y, label)
             pdf.rotate(0)
         else:
             # sem rotação: centraliza horizontalmente
-            pdf.text(px - (tw / 2.0), y + h + 12, label)
+            pdf.text(px - (tw / 2.0), y + h + (LABEL_GAP - 4), label)
 
     # Título e rótulo do eixo X com mais “respiro”
     pdf.set_font("Arial", "B", 11)
