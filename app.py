@@ -11,6 +11,8 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 
+from io import BytesIO
+
 # ===================== Dependência obrigatória (PDF) =====================
 MISSING = []
 try:
@@ -155,9 +157,14 @@ def _safe_filename(s: str) -> str:
     return s[:80] if s else "relatorio"
 
 def _as_bytes(pdf_obj) -> bytes:
-    """Compat: fpdf2 pode retornar str (latin1) ou bytes para output(dest='S')."""
+    """Garante bytes para qualquer versão do fpdf2 (str/bytes/bytearray)."""
     out = pdf_obj.output(dest="S")
-    return out if isinstance(out, (bytes, bytearray)) else out.encode("latin1", errors="ignore")
+    if isinstance(out, bytes):
+        return out
+    if isinstance(out, bytearray):
+        return bytes(out)
+    # fpdf2 antigo pode devolver str latin1
+    return out.encode("latin1", errors="ignore")
 
 # ===================== Conversor rápido =====================
 with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=False):
@@ -405,19 +412,26 @@ with b3:
             safe_obra = _safe_filename(st.session_state.obra)
             fname = f"Lote_Rupturas_{safe_obra}_{data_str}.pdf" if safe_obra else f"Lote_Rupturas_{data_str}.pdf"
 
-            # 1) Download direto do PDF
-            st.download_button("📄 Exportar para PDF", data=pdf_bytes, file_name=fname, mime="application/pdf")
+            # ... depois de obter pdf_bytes e fname ...
+pdf_bytes = _as_bytes_pdf := pdf_bytes  # só para clareza; pdf_bytes já vem do build_pdf
 
-            # 2) Abrir para imprimir em nova aba
-            b64 = base64.b64encode(pdf_bytes).decode("utf-8")
-            pdf_data_uri = f"data:application/pdf;base64,{b64}"
-            st.markdown(
-                f"""<a href="{pdf_data_uri}" target="_blank" 
-                       style="display:inline-block;margin-top:8px;padding:.55rem .9rem;border-radius:12px;
-                              background:{ACCENT};color:#111;font-weight:800;text-decoration:none;">
-                       🖨️ Imprimir (abrir PDF)
-                    </a>""",
-                unsafe_allow_html=True
+# Para o Streamlit aceitar sem erro, passe um arquivo (BytesIO) ao download_button
+pdf_file = BytesIO(pdf_bytes)
+
+# 1) Download direto do PDF (usando arquivo em memória)
+st.download_button("📄 Exportar para PDF", data=pdf_file, file_name=fname, mime="application/pdf")
+
+# 2) Abrir para imprimir em nova aba (data URI)
+b64 = base64.b64encode(pdf_bytes).decode("utf-8")
+pdf_data_uri = f"data:application/pdf;base64,{b64}"
+st.markdown(
+    f"""<a href="{pdf_data_uri}" target="_blank" 
+           style="display:inline-block;margin-top:8px;padding:.55rem .9rem;border-radius:12px;
+                  background:{ACCENT};color:#111;font-weight:800;text-decoration:none;">
+           🖨️ Imprimir (abrir PDF)
+        </a>""",
+    unsafe_allow_html=True
+)
             )
 
 # ===================== Rodapé diagnóstico =====================
