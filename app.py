@@ -46,44 +46,121 @@ SURFACE, CARD, BORDER, TEXT = (
 )
 
 # ===================== CSS global =====================
+# Paleta por tema (alto contraste) + variáveis auxiliares
+IS_DARK = (st.session_state.theme == "Escuro")
+
+SURFACE, CARD, BORDER, TEXT = (
+    ("#0a0a0a", "#111213", "rgba(255,255,255,0.12)", "#f5f5f5")  # Escuro
+    if IS_DARK else
+    ("#ffffff", "#fafafa", "rgba(0,0,0,0.16)", "#111111")        # Claro
+)
+
+# Sidebar: use um laranja mais claro no escuro p/ ficar legível
+SIDEBAR_TEXT = "#FFC08E" if IS_DARK else ACCENT
+
+# Campos de entrada: cores fortes por tema
+INPUT_BG   = "#18191b" if IS_DARK else "#ffffff"
+INPUT_TEXT = "#f5f5f5" if IS_DARK else "#111111"
+INPUT_BDR  = "rgba(255,255,255,0.3)" if IS_DARK else "#CDD3DA"
+PLACEHOLDER = "rgba(255,255,255,0.6)" if IS_DARK else "rgba(17,17,17,0.55)"
+
+# ===================== CSS global =====================
 st.markdown(f"""
 <style>
-:root {{ --accent:{ACCENT}; --surface:{SURFACE}; --card:{CARD}; --border:{BORDER}; --text:{TEXT}; }}
-html, body, [class*="block-container"] {{ background: var(--surface) !important; color: var(--text) !important; }}
-h1,h2,h3,h4, label, legend, .stMarkdown p {{ color: var(--text) !important; }}
-
-div[data-testid="stSidebar"] {{
-  background: var(--surface) !important; border-right: 1px solid var(--border);
+:root {{
+  --accent:{ACCENT};
+  --surface:{SURFACE};
+  --card:{CARD};
+  --border:{BORDER};
+  --text:{TEXT};
+  --sidebar-text:{SIDEBAR_TEXT};
+  --input-bg:{INPUT_BG};
+  --input-text:{INPUT_TEXT};
+  --input-border:{INPUT_BDR};
+  --placeholder:{PLACEHOLDER};
 }}
-div[data-testid="stSidebar"] h1, div[data-testid="stSidebar"] h2,
-div[data-testid="stSidebar"] h3, div[data-testid="stSidebar"] h4,
-div[data-testid="stSidebar"] p, div[data-testid="stSidebar"] label,
+
+html, body, [class*="block-container"] {{
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}}
+
+h1,h2,h3,h4, label, legend, .stMarkdown p {{
+  color: var(--text) !important;
+}}
+
+/* ===== Sidebar em laranja legível ===== */
+div[data-testid="stSidebar"] {{
+  background: var(--surface) !important;
+  border-right: 1px solid var(--border);
+}}
+div[data-testid="stSidebar"] h1,
+div[data-testid="stSidebar"] h2,
+div[data-testid="stSidebar"] h3,
+div[data-testid="stSidebar"] h4,
+div[data-testid="stSidebar"] p,
+div[data-testid="stSidebar"] label,
 div[data-testid="stSidebar"] .stMarkdown,
 div[data-testid="stSidebar"] [data-baseweb="radio"] *,
-div[data-testid="stSidebar"] .stRadio label {{ color: {ACCENT} !important; }}
-
-div[data-testid="stForm"] {{ background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 1rem; }}
-.stButton>button, .stDownloadButton>button {{
-  background: var(--accent); color:#111 !important; border:none; border-radius:14px;
-  padding:.65rem 1rem; font-weight:800; box-shadow:0 6px 16px rgba(215,84,19,.35);
+div[data-testid="stSidebar"] .stRadio label {{
+  color: var(--sidebar-text) !important;
 }}
-.stButton>button:disabled, .stDownloadButton>button:disabled {{ opacity:.55; cursor:not-allowed; box-shadow:none; }}
-input, textarea, select {{ color: var(--text) !important; background: var(--card) !important; border-color: var(--border) !important; }}
-::placeholder {{ color: color-mix(in oklab, var(--text), transparent 50%); }}
-[data-testid="stDataFrame"] thead th, [data-testid="stDataFrame"] tbody td {{ color: var(--text) !important; }}
+
+/* ===== Cards ===== */
+div[data-testid="stForm"] {{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 1rem;
+}}
+
+/* ===== Botões ===== */
+.stButton>button, .stDownloadButton>button {{
+  background: var(--accent);
+  color:#111 !important;
+  border:none; border-radius:14px;
+  padding:.65rem 1rem; font-weight:800;
+  box-shadow:0 6px 16px rgba(215,84,19,.35);
+}}
+.stButton>button:disabled, .stDownloadButton>button:disabled {{
+  opacity:.55; cursor:not-allowed; box-shadow:none;
+}}
+
+/* ===== Inputs com contraste forte por tema ===== */
+input, textarea, select {{
+  color: var(--input-text) !important;
+  background: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+}}
+/* alguns wrappers de input do Streamlit */
+div[role="textbox"] *, .stTextInput input, .stDateInput input, .stNumberInput input {{
+  color: var(--input-text) !important;
+  background: var(--input-bg) !important;
+}}
+/* placeholder visível em ambos os temas */
+::placeholder {{ color: var(--placeholder) !important; }}
+
+/* Dataframe */
+[data-testid="stDataFrame"] thead th, 
+[data-testid="stDataFrame"] tbody td {{ color: var(--text) !important; }}
 [data-testid="stDataFrame"] tbody tr {{ background: var(--card) !important; }}
+
+/* KPIs */
 .kpi {{ display:flex; gap:12px; flex-wrap:wrap; }}
-.kpi>div {{ background: var(--card); border:1px solid var(--border); border-radius:14px; padding:.65rem 1rem; }}
+.kpi>div {{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px; padding:.65rem 1rem;
+}}
 .small-note {{ opacity:.85; font-size:.86rem }}
 </style>
 """, unsafe_allow_html=True)
 
-# ===== Título principal em laranja
+# ===== Título principal em laranja (mantém como você pediu)
 st.markdown(
-    f"<h1 style='margin:0;color:{ACCENT}'>🏗️Sistema de Rupturas de Argamassa Habisolute</h1>",
+    f"<h1 style='margin:0;color:{ACCENT}'>Sistema de Rupturas de Argamassa Habisolute</h1>",
     unsafe_allow_html=True
 )
-st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
 
 # ===================== Conversões e helpers =====================
 KGF_CM2_TO_MPA    = 0.0980665
