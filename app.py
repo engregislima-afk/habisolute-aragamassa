@@ -352,24 +352,28 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
             pdf.cell(w, 6, c, 1, 0, "C")
         pdf.ln()
 
-    # Gráfico
-    pdf.ln(12)
-    gy = pdf.get_y() + 6
-    gx = left + 2
-    gw = 180 - (left - 15)
-    gh = 78
-    draw_scatter_on_pdf(pdf, df, x=gx, y=gy, w=gw, h=gh, accent=ACCENT)
-    pdf.set_y(gy + gh + 6)
+    # ===== Gráfico =====
+pdf.ln(12)
+gy = pdf.get_y() + 6
+gx = left + 2
+gw = 180 - (left - 15)
+gh = 78
+draw_scatter_on_pdf(pdf, df, x=gx, y=gy, w=gw, h=gh, accent=ACCENT)
 
-    # ID do relatório
-    report_id = _gen_report_id(data_obra)
-    pdf.set_font("Arial", "I", 9)
-    pdf.cell(0, 6, _latin1_safe(f"ID do relatório: {report_id}"), ln=1, align="L")
+# ↓↓↓ POSICIONA O ID DEPOIS DO RÓTULO "Código do CP"
+# (o rótulo é desenhado em y + h + 26; então colocamos o ID em +34)
+pdf.set_y(gy + gh + 34)
+pdf.set_font("Arial", "I", 9)
+report_id = _gen_report_id(data_obra)
+pdf.cell(0, 6, _latin1_safe(f"ID do relatório: {report_id}"), ln=1, align="L")
 
-    # Rodapé fixo
-    pdf.set_y(-15)
-    pdf.set_font("Arial", "I", 9)
-    pdf.cell(0, 6, _latin1_safe("SISTEMA DESENVOLVIDO PELA HABISOLUTE ENGENHARIA"), align="C")
+# ===== Rodapé SEM criar página nova
+# (nem ln depois do rodapé)
+pdf.set_auto_page_break(auto=False)         # evita quebra automática agora
+pdf.set_y(-15)                              # 15 mm acima do fim da PÁGINA ATUAL
+pdf.set_font("Arial", "I", 9)
+pdf.cell(0, 6, _latin1_safe("Sistema desenvolvido pela Habisolute Engenharia"), align="C")
+pdf.set_auto_page_break(auto=True, margin=18)  # restaura para o restante (se houver)
 
     return _as_bytes(pdf)
 
