@@ -312,16 +312,22 @@ if st.session_state.registros:
     st.divider()
 
 # ===================== PDF (fpdf2 desenhando o gráfico) =====================
-def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame,
-                        x: float, y: float, w: float, h: float,
-                        accent="#d75413"):
+def draw_scatter_on_pdf(
+    pdf: "FPDF",
+    df: pd.DataFrame,
+    x: float,
+    y: float,
+    w: float,
+    h: float,
+    accent: str = "#d75413",
+) -> None:
     """Desenha o gráfico (MPa por CP) no PDF com espaçamentos ajustados."""
-    # moldura + grade
+    # Moldura + grade
     pdf.set_draw_color(220, 220, 220)
     pdf.rect(x, y, w, h)
 
     codes = df["codigo_cp"].astype(str).tolist()
-    ys    = df["mpa"].astype(float).tolist()
+    ys = df["mpa"].astype(float).tolist()
     if not ys:
         return
 
@@ -337,61 +343,61 @@ def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame,
         pdf.line(x, yy, x + w, yy)
         pdf.text(x - 7.5, yy + 2.2, f"{val:.1f}")
 
-    # pontos
-        # pontos
-        # pontos
-    r = int(accent[1:3], 16); g = int(accent[3:5], 16); b = int(accent[5:7], 16)
+    # Pontos + rótulos de CP (afastados do eixo)
+    r = int(accent[1:3], 16)
+    g = int(accent[3:5], 16)
+    b = int(accent[5:7], 16)
     pdf.set_fill_color(r, g, b)
+
     n = len(ys)
+    dx = 8.0  # afastamento lateral dos rótulos (aumente se quiser mais)
     for i, val in enumerate(ys):
         px = x + (w * (i / max(1, n - 1)))
         py = y + h - (h * (val - y_min) / max(1e-9, (y_max - y_min)))
         pdf.ellipse(px - 1.8, py - 1.8, 3.6, 3.6, style="F")
 
-        # --- rótulos dos CPs (descolados da linha do eixo) ---
         label = _latin1_safe(codes[i][:14])
-        dx = 3.0    # <<< ajuste lateral: aumenta para afastar mais do eixo
         if _HAS_ROTATE:
             try:
-                pdf.rotate(90, px + dx, y + h + 16)    # pivot também deslocado
-                pdf.text(px + dx, y + h + 16, label)   # texto deslocado
+                pivot_x = px + dx
+                pivot_y = y + h + 16  # desce bem os rótulos verticais
+                pdf.rotate(90, pivot_x, pivot_y)
+                pdf.text(pivot_x, pivot_y, label)
                 pdf.rotate(0)
             except Exception:
-                pdf.text(px - (len(label)*1.2) + dx, y + h + 12, label)
+                pdf.text(px - (len(label) * 1.2) + dx, y + h + 12, label)
         else:
-            pdf.text(px - (len(label)*1.2) + dx, y + h + 12, label)
+            pdf.text(px - (len(label) * 1.2) + dx, y + h + 12, label)
 
-    # ↓ Título mais baixo (1 mm acima da moldura, longe da tabela)
-    # na draw_scatter_on_pdf(...)
-pdf.set_font("Arial", "B", 11)
-pdf.text(x, y - 0.5, "Gráfico de ruptura (MPa por CP)")  # -0.5 deixa o título mais perto do gráfico, longe da tabela
-
-pdf.set_font("Arial", size=9)
-pdf.text(x + w/2 - 12, y + h + 26, "Código do CP")       # era +24 → +26 descola mais dos rótulos
+    # Títulos do gráfico
+    pdf.set_font("Arial", "B", 11)
+    pdf.text(x, y - 1, "Gráfico de ruptura (MPa por CP)")  # mais longe da tabela
+    pdf.set_font("Arial", size=9)
+    pdf.text(x + w / 2 - 12, y + h + 26, "Código do CP")   # mais abaixo dos rótulos
 
 
 def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> bytes:
     pdf = FPDF("P", "mm", "A4")
 
-    # ===== Margens & quebra automática =====
-    left, top, right = 20, 22, 20   # << margens mais generosas
+    # Margens & quebra automática
+    left, top, right = 20, 22, 20
     pdf.set_margins(left, top, right)
     pdf.set_auto_page_break(auto=True, margin=18)
 
     pdf.add_page()
 
-    # ===== Cabeçalho =====
+    # Cabeçalho
     pdf.set_font("Arial", "B", 15)
     pdf.cell(0, 8, _latin1_safe("Rupturas de Argamassa  Lote"), ln=1, align="C")
 
     pdf.set_font("Arial", size=11)
     info = f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²"
     pdf.cell(0, 6, _latin1_safe(info), ln=1, align="C")
-    pdf.ln(6)  # respiro após o cabeçalho
+    pdf.ln(6)
 
-    # ===== Tabela =====
-    hdr  = ["#", "Código CP", "Carga (kgf)", "Área (cm²)", "kN/cm²", "MPa"]
-    wid  = [10, 60, 30, 24, 28, 24]  # levemente mais largos
+    # Tabela
+    hdr = ["#", "Código CP", "Carga (kgf)", "Área (cm²)", "kN/cm²", "MPa"]
+    wid = [10, 60, 30, 24, 28, 24]
     pdf.set_font("Arial", "B", 10)
     for h, w in zip(hdr, wid):
         pdf.cell(w, 7, _latin1_safe(h), 1, 0, "C")
@@ -410,14 +416,14 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
             pdf.cell(w, 6, c, 1, 0, "C")
         pdf.ln()
 
-    # ===== Gráfico =====
-pdf.ln(12)             # <— era 6; dá mais espaço depois da tabela
-gy = pdf.get_y() + 6   # <— era +2; empurra o gráfico ainda mais pra baixo
-gx = left + 2
-gw = 180 - (left - 15)
-gh = 78
-draw_scatter_on_pdf(pdf, df, x=gx, y=gy, w=gw, h=gh, accent=ACCENT)
-pdf.set_y(gy + gh + 30)
+    # Gráfico (com mais “respiro” após a tabela)
+    pdf.ln(12)
+    gy = pdf.get_y() + 6
+    gx = left + 2
+    gw = 180 - (left - 15)
+    gh = 78
+    draw_scatter_on_pdf(pdf, df, x=gx, y=gy, w=gw, h=gh, accent=ACCENT)
+    pdf.set_y(gy + gh + 30)
 
     return _as_bytes(pdf)
 
