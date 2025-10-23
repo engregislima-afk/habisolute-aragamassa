@@ -161,16 +161,11 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# Força legibilidade da sidebar só no modo escuro
+# Força legibilidade extra da sidebar só no modo escuro
 if st.session_state.theme == "Escuro":
     st.markdown("""
     <style>
-    /* fundo da sidebar no escuro */
-    [data-testid="stSidebar"]{
-      background:#0a0a0a !important;
-    }
-
-    /* texto da sidebar sempre visível (títulos, labels, parágrafos, etc.) */
+    [data-testid="stSidebar"]{ background:#0a0a0a !important; }
     [data-testid="stSidebar"] h1,
     [data-testid="stSidebar"] h2,
     [data-testid="stSidebar"] h3,
@@ -180,16 +175,13 @@ if st.session_state.theme == "Escuro":
     [data-testid="stSidebar"] .stMarkdown,
     [data-testid="stSidebar"] span,
     [data-testid="stSidebar"] div[role="radiogroup"] label {
-      color:#FFC08E !important;      /* laranja claro */
+      color:#FFC08E !important;
       opacity:1 !important;
       filter:none !important;
       text-shadow:none !important;
     }
-
-    /* ícones/círculos do radio com contraste total */
     [data-testid="stSidebar"] div[role="radiogroup"] svg {
-      opacity:1 !important;
-      filter:none !important;
+      opacity:1 !important; filter:none !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -236,6 +228,15 @@ def _hex_to_rgb(hexstr: str):
 def _gen_report_id(dt: date) -> str:
     # Ex.: 20251023-A453DA
     return f"{dt.strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}"
+
+# ===== Normas (usadas no PDF e exibidas como rodapé do app)
+NORMAS_TXT = (
+    "Normas de referência (argamassa):\n"
+    "• ABNT NBR 13279 — Determinação da resistência à tração na flexão e à compressão.\n"
+    "• ABNT NBR 13276 — Determinação do índice de consistência.\n"
+    "• ABNT NBR 13277 — Retenção de água.\n"
+    "• ABNT NBR 13281 — Requisitos para argamassas de assentamento e revestimento."
+)
 
 # ===================== Conversor rápido =====================
 with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=False):
@@ -430,12 +431,17 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
     report_id = _gen_report_id(data_obra)
     pdf.cell(0, 6, _latin1_safe(f"ID do relatório: {report_id}"), ln=1, align="L")
 
+    # Normas (bloco textual) logo após o ID
+    pdf.ln(2)
+    pdf.set_font("Arial", size=8)
+    pdf.multi_cell(0, 4, _latin1_safe(NORMAS_TXT))
+
     # Rodapé na última página (sem criar nova)
     prev_apb = pdf.auto_page_break
     pdf.set_auto_page_break(auto=False)
     pdf.set_y(-15)
     pdf.set_font("Arial", "I", 9)
-    pdf.cell(0, 6, _latin1_safe("SISTEMA DESENVOLVIDO PELA HABISOLUTE ENGENHARIA"), align="C")
+    pdf.cell(0, 6, _latin1_safe("SISTEMA DESENVOLVIDO PELA HABISOLUTE ENGENHARIA E CONTROLE TECNOLÓGICO"), align="C")
     pdf.set_auto_page_break(auto=prev_apb, margin=18)
 
     return _as_bytes(pdf)
@@ -502,6 +508,22 @@ with b3:
         }})();
         </script>
         """, height=60)
+
+# ===================== Rodapé do APP (informativo)
+st.markdown("---")
+st.markdown(
+    "**Normas de referência (argamassa):**  \n"
+    "• ABNT NBR 13279 — Determinação da resistência à tração na flexão e à compressão.  \n"
+    "• ABNT NBR 13276 — Determinação do índice de consistência.  \n"
+    "• ABNT NBR 13277 — Retenção de água.  \n"
+    "• ABNT NBR 13281 — Requisitos para argamassas de assentamento e revestimento."
+)
+st.markdown(
+    "<div style='text-align:center;opacity:.9;margin-top:.5rem'><em>"
+    "SISTEMA DESENVOLVIDO PELA HABISOLUTE ENGENHARIA E CONTROLE TECNOLÓGICO"
+    "</em></div>",
+    unsafe_allow_html=True
+)
 
 # ===================== Rodapé diagnóstico =====================
 st.caption(
