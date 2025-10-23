@@ -161,6 +161,41 @@ st.markdown(
     f"<h1 style='margin:0;color:{ACCENT}'>Sistema de Rupturas de Argamassa Habisolute</h1>",
     unsafe_allow_html=True
 )
+st.markdown("""
+<style>
+/* ====== FIX: botões dentro de forms (Aplicar / etc.) ====== */
+div[data-testid="stForm"] .stButton > button {
+  background: var(--accent) !important;
+  color: #111 !important;
+  border: none !important;
+  filter: none !important;
+}
+div[data-testid="stForm"] .stButton > button:disabled {
+  background: #c9c9c9 !important;   /* cinza claro (não preto) */
+  color: #222 !important;
+  box-shadow: none !important;
+  opacity: .8 !important;
+}
+
+/* ====== FIX: mensagens de feedback (st.success, st.error, etc.) ====== */
+div[data-testid="stAlert"] {
+  color: var(--text) !important;      /* texto sempre visível no claro/escuro */
+}
+div[data-testid="stAlert"] p, 
+div[data-testid="stAlert"] span, 
+div[data-testid="stAlert"] strong {
+  color: var(--text) !important;
+  filter: none !important;
+  font-weight: 600;
+}
+
+/* opcional: borda sutil nos alerts para destacar no tema claro */
+html:root:not(.dark) div[data-testid="stAlert"] {
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: 10px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ===================== Conversões e helpers =====================
 KGF_CM2_TO_MPA    = 0.0980665
