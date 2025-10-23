@@ -251,7 +251,7 @@ with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=Fals
 
 # ===================== Dados da obra =====================
 with st.form("obra_form"):
-    st.subheader("Dados da obra")
+    st.subheader("☑️Dados da obra")
     a,b,c = st.columns([2,1,1])
     obra = a.text_input("Nome da obra", st.session_state.obra, placeholder="Ex.: Residencial Jardim Tropical")
     data_obra = b.date_input("Data", st.session_state.data_obra, format="DD/MM/YYYY")
