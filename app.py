@@ -441,7 +441,7 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
     pdf.set_auto_page_break(auto=False)
     pdf.set_y(-15)
     pdf.set_font("Arial", "I", 9)
-    pdf.cell(0, 6, _latin1_safe("SISTEMA DESENVOLVIDO PELA HABISOLUTE ENGENHARIA E CONTROLE TECNOLÓGICO"), align="C")
+    pdf.cell(0, 6, _latin1_safe("Sistema desenvolvido pela Habisolute Engenharia e Controle Tecnológico"), align="C")
     pdf.set_auto_page_break(auto=prev_apb, margin=18)
 
     return _as_bytes(pdf)
@@ -527,7 +527,7 @@ st.markdown(
 )
 st.markdown(
     "<div style='text-align:center;opacity:.9;margin-top:.5rem'><em>"
-    "SISTEMA DESENVOLVIDO PELA HABISOLUTE ENGENHARIA E CONTROLE TECNOLÓGICO"
+    "Sistema desenvolvido pela Habisolute Engenharia e Controle Tecnológico"
     "</em></div>",
     unsafe_allow_html=True
 )
