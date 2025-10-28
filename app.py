@@ -404,26 +404,42 @@ if not edited.equals(df[edited.columns]):
     with c:
         dp = _dp(df["mpa"].tolist()); st.metric("DP (MPa)", f"{(dp if dp is not None else 0.0):.3f}")
 
-    # 6) Gráfico
-    st.subheader("📈Gráfico de ruptura (MPa por CP)")
-    chart_df = pd.DataFrame({"Código CP": df["codigo_cp"].values, "MPa": df["mpa"].values})
-    axis_color = TEXT
-    grid_color = "rgba(255,255,255,0.20)" if IS_DARK else "rgba(0,0,0,0.12)"
-    y_max = max(chart_df["MPa"]) * 1.15 if len(chart_df) else 1
-    points = (
-        alt.Chart(chart_df).mark_point(size=90, filled=True, color=ACCENT)
-        .encode(
-            x=alt.X("Código CP:N", sort=None, title="Código do CP"),
-            y=alt.Y("MPa:Q", scale=alt.Scale(domain=[0, y_max]), title="MPa"),
-            tooltip=["Código CP", alt.Tooltip("MPa:Q", format=".3f")]
-        )
-        .properties(height=340)
-        .configure_axis(labelColor=axis_color, titleColor=axis_color, gridColor=grid_color, domainColor=axis_color)
-        .configure_title(color=axis_color)
-        .configure_legend(labelColor=axis_color, titleColor=axis_color)
-    )
-    st.altair_chart(points, use_container_width=True)
-    st.divider()
+    # 6) Gráfico — cada registro vira um ponto (sem agregar por código)
+st.subheader("📈Gráfico de ruptura (MPa por CP)")
+
+chart_df = pd.DataFrame({
+    "Código CP": df["codigo_cp"].astype(str).values,
+    "MPa":       df["mpa"].astype(float).values
+}).reset_index(drop=False).rename(columns={"index": "rowid"})  # rowid único por linha
+
+axis_color = TEXT
+grid_color = "rgba(255,255,255,0.20)" if IS_DARK else "rgba(0,0,0,0.12)"
+y_max = (chart_df["MPa"].max() * 1.15) if len(chart_df) else 1.0
+
+points = (
+    alt.Chart(chart_df)
+      .mark_point(size=90, filled=True, color=ACCENT)
+      .encode(
+          x=alt.X("Código CP:N", sort=None, title="Código do CP"),
+          y=alt.Y("MPa:Q", aggregate=None,  # << não agrega
+                  scale=alt.Scale(domain=[0, y_max]),
+                  title="MPa"),
+          detail="rowid:N",                 # << força 1 ponto por linha
+          tooltip=["Código CP", alt.Tooltip("MPa:Q", format=".3f")]
+      )
+      .properties(height=340)
+      .configure_axis(
+          labelColor=axis_color,
+          titleColor=axis_color,
+          gridColor=grid_color,
+          domainColor=axis_color
+      )
+      .configure_title(color=axis_color)
+      .configure_legend(labelColor=axis_color, titleColor=axis_color)
+)
+
+st.altair_chart(points, use_container_width=True)
+st.divider()
 
 # ===================== PDF (fpdf2 desenhando o gráfico) =====================
 def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame, x: float, y: float, w: float, h: float, accent: str | None = None) -> None:
