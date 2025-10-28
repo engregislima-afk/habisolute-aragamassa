@@ -379,23 +379,23 @@ if st.session_state.registros:
     )
 
     # 4) Se editou algo, persistimos no session_state (com campos novos)
-    if not edited.equals(df[edited.columns]):
-        new_regs = []
-        for row in edited.itertuples(index=False):
-            s_kgfcm2, s_kncm2, s_mpa = tensoes_from_kgf(float(row.carga_kgf), float(row.area_cm2))
-            new_regs.append({
-                "codigo_cp": str(row.codigo_cp),
-                "carga_kgf": float(row.carga_kgf),
-                "area_cm2": float(row.area_cm2),
-                "kgf_cm2": float(s_kgfcm2),
-                "kn_cm2":  float(s_kn_cm2),
-                "mpa":     float(s_mpa),
-                "data_moldagem": str(row.data_moldagem),
-                "data_ruptura":  str(row.data_ruptura),
-                "idade_dias":    int(row.idade_dias),
-            })
-        st.session_state.registros = new_regs
-        df = pd.DataFrame(st.session_state.registros)
+if not edited.equals(df[edited.columns]):
+    new_regs = []
+    for row in edited.itertuples(index=False):
+        s_kgfcm2, s_kncm2, s_mpa = tensoes_from_kgf(float(row.carga_kgf), float(row.area_cm2))
+        new_regs.append({
+            "codigo_cp": str(row.codigo_cp),
+            "carga_kgf": float(row.carga_kgf),
+            "area_cm2":  float(row.area_cm2),
+            "kgf_cm2":   float(s_kgfcm2),
+            "kn_cm2":    float(s_kncm2),   # << corrigido
+            "mpa":       float(s_mpa),
+            "data_moldagem": str(row.data_moldagem),
+            "data_ruptura":  str(row.data_ruptura),
+            "idade_dias":    int(row.idade_dias),
+        })
+    st.session_state.registros = new_regs
+    df = pd.DataFrame(st.session_state.registros)
 
     # 5) Métricas
     a,b,c = st.columns(3)
