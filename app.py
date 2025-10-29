@@ -1,4 +1,4 @@
-# app.py — 🏗️Sistema de Rupturas de Argamassa Habisolute
+# app.py — 🏗️Sistema de Rupturas de Argamassa Habisolute (Win11 look)
 from __future__ import annotations
 from datetime import date
 from statistics import mean, pstdev
@@ -21,7 +21,7 @@ except Exception:
     MISSING.append("fpdf2>=2.7")
 
 # ===================== Estado & Tema =====================
-ACCENT = "#d75413"
+ACCENT = "#d75413"  # laranja Habisolute
 st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🏗️", layout="centered")
 
 if "theme" not in st.session_state: st.session_state.theme = "Escuro"
@@ -33,7 +33,7 @@ if "registros" not in st.session_state: st.session_state.registros = []
 if "data_moldagem" not in st.session_state: st.session_state.data_moldagem = date.today()
 if "data_ruptura"  not in st.session_state: st.session_state.data_ruptura  = date.today()
 
-# ===== Sidebar
+# ===== Sidebar: seletor de tema
 with st.sidebar:
     st.markdown(f"<h2 style='margin-top:0;color:{ACCENT}'>Preferências</h2>", unsafe_allow_html=True)
     st.session_state.theme = st.radio(
@@ -41,7 +41,8 @@ with st.sidebar:
         horizontal=True,
         index=0 if st.session_state.theme == "Escuro" else 1
     )
-    # ===================== CSS global — Windows 11 look =====================
+
+# ===================== CSS global — Windows 11 look =====================
 IS_DARK = (st.session_state.theme == "Escuro")
 
 SURFACE, CARD, BORDER, TEXT = (
@@ -215,187 +216,29 @@ div[data-testid="stForm"] .stButton>button:disabled {{
 }}
 
 /* ---------- Seletores/Radio/Checkbox (BaseWeb) ---------- */
-[data-baseweb="radio"] > div {{
-  gap: .5rem !important;
-}}
-[data-baseweb="radio"] svg {{
-  filter: drop-shadow(0 0 0 rgba(0,0,0,0));
-}}
-[data-baseweb="checkbox"] > label > div {{
-  border-radius: 8px !important;
-}}
+[data-baseweb="radio"] > div {{ gap: .5rem !important; }}
+[data-baseweb="radio"] svg {{ filter: drop-shadow(0 0 0 rgba(0,0,0,0)); }}
+[data-baseweb="checkbox"] > label > div {{ border-radius: 8px !important; }}
 
 /* ---------- Scrollbar suave ---------- */
-* {{
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--accent) 55%, #9aa) transparent;
-}}
-*::-webkit-scrollbar {{
-  height: 10px; width: 10px;
-}}
+* {{ scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--accent) 55%, #9aa) transparent; }}
+*::-webkit-scrollbar {{ height: 10px; width: 10px; }}
 *::-webkit-scrollbar-thumb {{
   background: color-mix(in srgb, var(--accent) 55%, #9aa);
-  border-radius: 10px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+  border-radius: 10px; border: 2px solid transparent; background-clip: padding-box;
 }}
-*::-webkit-scrollbar-track {{
-  background: transparent;
-}}
+*::-webkit-scrollbar-track {{ background: transparent; }}
 
 /* ---------- Tooltips Altair ---------- */
-.vega-embed summary {{
-  color: var(--text) !important;
-}}
+.vega-embed summary {{ color: var(--text) !important; }}
 </style>
 """, unsafe_allow_html=True)
 
-# ===================== CSS global (um único bloco) =====================
-IS_DARK = (st.session_state.theme == "Escuro")
-
-SURFACE, CARD, BORDER, TEXT = (
-    ("#0a0a0a", "#111213", "rgba(255,255,255,0.12)", "#f5f5f5")
-    if IS_DARK else
-    ("#ffffff", "#fafafa", "rgba(0,0,0,0.16)", "#111111")
-)
-SIDEBAR_TEXT = "#FFC08E" if IS_DARK else ACCENT
-INPUT_BG   = "#18191b" if IS_DARK else "#ffffff"
-INPUT_TEXT = "#f5f5f5" if IS_DARK else "#111111"
-INPUT_BDR  = "rgba(255,255,255,0.35)" if IS_DARK else "#CDD3DA"
-PLACEHOLDER = "rgba(255,255,255,0.6)" if IS_DARK else "rgba(17,17,17,0.55)"
-
-st.markdown(f"""
-<style>
-:root {{
-  --accent:{ACCENT};
-  --surface:{SURFACE};
-  --card:{CARD};
-  --border:{BORDER};
-  --text:{TEXT};
-  --sidebar-text:{SIDEBAR_TEXT};
-  --input-bg:{INPUT_BG};
-  --input-text:{INPUT_TEXT};
-  --input-border:{INPUT_BDR};
-  --placeholder:{PLACEHOLDER};
-}}
-
-html, body, [class*="block-container"] {{
-  background: var(--surface) !important;
-  color: var(--text) !important;
-}}
-/* NÃO estilize h1 aqui para não sumir o título */
-h2,h3,h4, label, legend, .stMarkdown p {{ color: var(--text) !important; }}
-
-/* Sidebar legível */
-div[data-testid="stSidebar"] {{
-  background: var(--surface) !important;
-  border-right: 1px solid var(--border);
-}}
-div[data-testid="stSidebar"] h1,
-div[data-testid="stSidebar"] h2,
-div[data-testid="stSidebar"] h3,
-div[data-testid="stSidebar"] h4,
-div[data-testid="stSidebar"] p,
-div[data-testid="stSidebar"] label,
-div[data-testid="stSidebar"] .stMarkdown,
-div[data-testid="stSidebar"] [data-baseweb="radio"] label,
-div[data-testid="stSidebar"] [data-baseweb="radio"] span {{
-  color: var(--sidebar-text) !important;
-  opacity: 1 !important;
-  filter: none !important;
-}}
-div[data-testid="stSidebar"] [data-baseweb="radio"] svg {{ opacity: 1 !important; filter: none !important; }}
-
-/* Cards */
-div[data-testid="stForm"] {{
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 1rem;
-}}
-
-/* Inputs */
-input, textarea, select {{
-  color: var(--input-text) !important;
-  background: var(--input-bg) !important;
-  border-color: var(--input-border) !important;
-}}
-div[role="textbox"] *, .stTextInput input, .stDateInput input, .stNumberInput input {{
-  color: var(--input-text) !important;
-  background: var(--input-bg) !important;
-}}
-::placeholder {{ color: var(--placeholder) !important; }}
-
-/* Dataframe */
-[data-testid="stDataFrame"] thead th, 
-[data-testid="stDataFrame"] tbody td {{ color: var(--text) !important; }}
-[data-testid="stDataFrame"] tbody tr {{ background: var(--card) !important; }}
-
-/* Botões (inclui dentro de forms) */
-.stButton>button, .stDownloadButton>button,
-div[data-testid="stForm"] .stButton>button {{
-  background: var(--accent) !important;
-  color:#111 !important;
-  border:none !important; border-radius:14px !important;
-  padding:.65rem 1rem !important; font-weight:800 !important;
-  box-shadow:0 6px 16px rgba(215,84,19,.35) !important;
-}}
-div[data-testid="stForm"] .stButton>button:disabled {{
-  background:#cfcfcf !important; color:#222 !important; box-shadow:none !important; opacity:.85 !important;
-}}
-
-/* Alerts legíveis */
-div[data-testid="stAlert"] {{ color: var(--text) !important; }}
-div[data-testid="stAlert"] p, 
-div[data-testid="stAlert"] span, 
-div[data-testid="stAlert"] strong {{ color: var(--text) !important; font-weight:600; }}
-html:root:not(.dark) div[data-testid="stAlert"] {{ border:1px solid rgba(0,0,0,.08); border-radius:10px; }}
-
-/* KPIs */
-.kpi {{ display:flex; gap:12px; flex-wrap:wrap; }}
-.kpi>div {{ background: var(--card); border:1px solid var(--border); border-radius:14px; padding:.65rem 1rem; }}
-.small-note {{ opacity:.85; font-size:.86rem }}
-</style>
-""", unsafe_allow_html=True)
-
-# ===== Título (laranja garantido)
+# ===== Título
 st.markdown(
     "<h1 id='app-title' style='margin:0'>🏗️Sistema de Rupturas de Argamassa Habisolute</h1>",
     unsafe_allow_html=True
 )
-st.markdown(f"""
-<style>
-#app-title {{
-  color: {ACCENT} !important;
-  letter-spacing: .2px;
-}}
-</style>
-""", unsafe_allow_html=True)
-
-# Força legibilidade extra da sidebar só no modo escuro
-if st.session_state.theme == "Escuro":
-    st.markdown("""
-    <style>
-    [data-testid="stSidebar"]{ background:#0a0a0a !important; }
-    [data-testid="stSidebar"] h1,
-    [data-testid="stSidebar"] h2,
-    [data-testid="stSidebar"] h3,
-    [data-testid="stSidebar"] h4,
-    [data-testid="stSidebar"] p,
-    [data-testid="stSidebar"] label,
-    [data-testid="stSidebar"] .stMarkdown,
-    [data-testid="stSidebar"] span,
-    [data-testid="stSidebar"] div[role="radiogroup"] label {
-      color:#FFC08E !important;
-      opacity:1 !important;
-      filter:none !important;
-      text-shadow:none !important;
-    }
-    [data-testid="stSidebar"] div[role="radiogroup"] svg {
-      opacity:1 !important; filter:none !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
 
 st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
 
@@ -539,6 +382,7 @@ if st.session_state.registros:
     lote_rupt = st.session_state.data_ruptura
     lote_idade = max(0, (lote_rupt - lote_mold).days)
 
+    # adiciona/garante colunas novas
     if "data_moldagem" not in df.columns:
         df["data_moldagem"] = lote_mold.isoformat()
     df["data_moldagem"] = df["data_moldagem"].fillna(lote_mold.isoformat())
@@ -552,9 +396,9 @@ if st.session_state.registros:
     df["idade_dias"] = df["idade_dias"].fillna(lote_idade).astype(int)
 
     # 2.1) Garante tensões
-    if ("kgf_cm2" not in df.columns) or ("kn_cm2" not in df.columns) or ("mpa" not in df.columns):
+    if "kgf_cm2" not in df.columns or "kn_cm2" not in df.columns or "mpa" not in df.columns:
         df["kgf_cm2"], df["kn_cm2"], df["mpa"] = None, None, None
-    if df[["kgf_cm2", "kn_cm2", "mpa"]].isnull().any().any():
+    if df[["kgf_cm2","kn_cm2","mpa"]].isnull().any().any():
         vals = []
         for r in df.itertuples(index=False):
             s_kgfcm2, s_kncm2, s_mpa = tensoes_from_kgf(float(r.carga_kgf), float(r.area_cm2))
@@ -603,19 +447,18 @@ if st.session_state.registros:
         df = pd.DataFrame(st.session_state.registros)
 
     # 5) Métricas
-    a, b, c = st.columns(3)
+    a,b,c = st.columns(3)
     with a: st.metric("Média (kN/cm²)", f"{mean(df['kn_cm2']):.4f}")
     with b: st.metric("Média (MPa)",    f"{mean(df['mpa']):.3f}")
     with c:
-        dp = _dp(df["mpa"].tolist())
-        st.metric("DP (MPa)", f"{(dp if dp is not None else 0.0):.3f}")
+        dp = _dp(df["mpa"].tolist()); st.metric("DP (MPa)", f"{(dp if dp is not None else 0.0):.3f}")
 
-    # 6) Gráfico — 1 ponto por linha (sem aggregate=None)
+    # 6) Gráfico — cada registro vira um ponto (sem aggregate=None)
     st.subheader("📈Gráfico de ruptura (MPa por CP)")
     chart_df = pd.DataFrame({
         "Código CP": df["codigo_cp"].astype(str).values,
         "MPa":       df["mpa"].astype(float).values
-    }).reset_index(drop=False).rename(columns={"index": "rowid"})
+    }).reset_index(drop=False).rename(columns={"index": "rowid"})  # rowid único por linha
 
     axis_color = TEXT
     grid_color = "rgba(255,255,255,0.20)" if IS_DARK else "rgba(0,0,0,0.12)"
@@ -634,15 +477,18 @@ if st.session_state.registros:
               ]
           )
           .properties(height=340)
-          .configure_axis(labelColor=axis_color, titleColor=axis_color,
-                          gridColor=grid_color, domainColor=axis_color)
+          .configure_axis(
+              labelColor=axis_color,
+              titleColor=axis_color,
+              gridColor=grid_color,
+              domainColor=axis_color
+          )
           .configure_title(color=axis_color)
           .configure_legend(labelColor=axis_color, titleColor=axis_color)
     )
 
     st.altair_chart(points, use_container_width=True)
     st.divider()
-
 else:
     st.info("Nenhum CP lançado ainda. Adicione registros para visualizar tabela e gráfico.")
 
