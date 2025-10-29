@@ -151,9 +151,6 @@ div[data-testid="stToolbar"]:hover{
 </style>
 """, unsafe_allow_html=True)
 
-# ===== Título
-st.markdown("<h1 id='app-title' style='margin:0'>🏗️Sistema de Rupturas de Argamassa Habisolute</h1>", unsafe_allow_html=True)
-st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
 # === HOTFIX FINAL (coloque no FIM do arquivo) ===
 st.markdown("""
 <style>
