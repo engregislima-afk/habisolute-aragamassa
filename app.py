@@ -141,19 +141,6 @@ html:root:not(.dark) input, html:root:not(.dark) textarea, html:root:not(.dark) 
 </style>
 """, unsafe_allow_html=True)
 
-# ===== TÍTULO 100% PRETO (via iframe isolado)
-components.html("""
-<div style="
-  font-family: 'Segoe UI Variable Text','Segoe UI',system-ui,-apple-system,Roboto,Arial,'Noto Sans',sans-serif;
-  color:#111111; font-weight:800;
-  font-size: clamp(26px, 4vw, 38px);
-  line-height:1.18; margin: 10px 0 6px 0;">
-  🏗️ Sistema de Rupturas de Argamassa Habisolute
-</div>
-""", height=56, scrolling=False)
-
-st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
-
 # ===================== Conversões & helpers =====================
 KGF_CM2_TO_MPA    = 0.0980665
 KGF_CM2_TO_KN_CM2 = 0.00980665
