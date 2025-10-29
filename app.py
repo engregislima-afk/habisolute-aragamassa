@@ -554,7 +554,7 @@ points = (
       .mark_point(size=110, filled=True, color=ACCENT, opacity=0.95)
       .encode(
           x=alt.X('Código CP:N', title='Código do CP', sort=None,
-                  axis=alt.Axis(labelAngle=0)),
+                  axis=alt.Axis(labelAngle=0),
           xOffset='offset:Q',
           y=alt.Y('MPa:Q', scale=alt.Scale(domain=[0, y_max]), title='MPa'),
           tooltip=[alt.Tooltip('Código CP:N', title='Código CP'),
