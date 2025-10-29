@@ -516,17 +516,6 @@ if st.session_state.registros:
     with c:
         dp = _dp(df["mpa"].tolist()); st.metric("DP (MPa)", f"{(dp if dp is not None else 0.0):.3f}")
 
-    # 6) Gráfico — visível em qualquer tema
-    st.subheader("📈Gráfico de ruptura (MPa por CP)")
-    chart_df = pd.DataFrame({
-        "Código CP": df["codigo_cp"].astype(str).values,
-        "MPa":       df["mpa"].astype(float).values
-    }).reset_index(drop=False).rename(columns={"index": "rowid"})
-
-    bg = "#0f1115" if st.session_state.theme == "Escuro" else "#ffffff"
-    axis_color = "#e8eaed" if st.session_state.theme == "Escuro" else "#111318"
-    grid_color = "rgba(255,255,255,0.22)" if st.session_state.theme == "Escuro" else "#e5e7eb"
-    y_max = float(chart_df["MPa"].max() * 1.15) if len(chart_df) else 1.0
 
     # 6) Gráfico — pontos espaçados mesmo quando o Código CP se repete
 st.subheader("📈Gráfico de ruptura (MPa por CP)")
