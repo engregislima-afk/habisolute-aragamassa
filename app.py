@@ -575,7 +575,7 @@ points = (
 
 st.altair_chart(points, use_container_width=True)
 st.divider()
-else:
+    else:
     st.info("Nenhum CP lançado ainda. Adicione registros para visualizar tabela e gráfico.")
 
 # ===================== PDF (fpdf2 desenhando o gráfico) =====================
