@@ -297,7 +297,40 @@ html:root:not(.dark) div[data-testid="stForm"] .stButton > button{
 }
 </style>
 """, unsafe_allow_html=True)
+# === TÍTULO 100% PRETO (override definitivo) ===
+st.markdown("""
+<style>
+/* Aumenta a especificidade e usa !important em tudo que pode afetar a cor */
+h1#app-title,
+[data-testid="stMarkdownContainer"] h1#app-title,
+section main h1#app-title,
+div:has(> h1#app-title) h1#app-title {
+  color:#111111 !important;
+  -webkit-text-fill-color:#111111 !important;
+  text-shadow:none !important;
+  opacity:1 !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+  font-weight:800 !important;
+}
 
+/* Se algum contêiner pai estiver aplicando opacidade/cor, neutraliza */
+div:has(> h1#app-title) {
+  color:#111111 !important;
+  opacity:1 !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+}
+div:has(> h1#app-title) * {
+  color:#111111 !important;
+  -webkit-text-fill-color:#111111 !important;
+  text-shadow:none !important;
+  opacity:1 !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ===================== Conversões & helpers =====================
 KGF_CM2_TO_MPA    = 0.0980665
