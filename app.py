@@ -172,6 +172,26 @@ html.dark input[disabled]{
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* ========== Disabled inputs always legible (separate safe block) ========== */
+html:root:not(.dark) .stNumberInput input:disabled,
+html:root:not(.dark) .stTextInput input:disabled,
+html:root:not(.dark) input[disabled]{
+  color:#111111 !important;
+  -webkit-text-fill-color:#111111 !important;
+  opacity:1 !important;
+}
+html.dark .stNumberInput input:disabled,
+html.dark .stTextInput input:disabled,
+html.dark input[disabled]{
+  color:#f5f6f8 !important;
+  -webkit-text-fill-color:#f5f6f8 !important;
+  opacity:1 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ===== TÍTULO — PRETO definitivo (inline + !important), sem alterar layout
 st.markdown(
     """
