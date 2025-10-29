@@ -1,4 +1,4 @@
-# app.py — 🏗️Sistema de Rupturas de Argamassa Habisolute (Win11 look + hotfix claro/escuro)
+# app.py — 🏗️Sistema de Rupturas de Argamassa Habisolute
 from __future__ import annotations
 from datetime import date
 from statistics import mean, pstdev
@@ -22,9 +22,11 @@ except Exception:
 
 # ===================== Estado & Tema =====================
 ACCENT = "#d75413"  # laranja Habisolute
-st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🏗️", layout="centered")
 
-if "theme" not in st.session_state: st.session_state.theme = "Escuro"
+# WIDESCREEN
+st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🏗️", layout="wide")
+
+if "theme" not in st.session_state: st.session_state.theme = "Claro"  # começa no claro
 if "obra" not in st.session_state: st.session_state.obra = ""
 if "data_obra" not in st.session_state: st.session_state.data_obra = date.today()
 if "area_padrao" not in st.session_state: st.session_state.area_padrao = 16.00
@@ -39,7 +41,7 @@ with st.sidebar:
     st.session_state.theme = st.radio(
         "Tema", ["Escuro", "Claro"],
         horizontal=True,
-        index=0 if st.session_state.theme == "Escuro" else 1
+        index=1 if st.session_state.theme == "Claro" else 0
     )
 
 # ===================== CSS base — Windows 11 look =====================
@@ -48,212 +50,87 @@ IS_DARK = (st.session_state.theme == "Escuro")
 SURFACE, CARD, BORDER, TEXT = (
     ("#0b0b0c", "rgba(26,27,30,0.72)", "rgba(255,255,255,0.12)", "#f5f6f8")
     if IS_DARK else
-    ("#f7f7f8", "rgba(255,255,255,0.75)", "rgba(17,17,17,0.12)", "#111318")
+    ("#ffffff", "#ffffff", "rgba(17,17,17,0.12)", "#111318")
 )
-SIDEBAR_BG   = ("rgba(20,21,24,0.66)" if IS_DARK else "rgba(255,255,255,0.75)")
-SIDEBAR_TEXT = "#FFD2B0" if IS_DARK else ACCENT
-INPUT_BG     = ("rgba(33,35,38,0.66)" if IS_DARK else "#ffffff")
+SIDEBAR_BG   = ("#1b1d22" if IS_DARK else "#f2f4f7")
+SIDEBAR_TEXT = ("#e9ebef" if IS_DARK else "#2b2f36")
+INPUT_BG     = ("#212327" if IS_DARK else "#ffffff")
 INPUT_TEXT   = ("#eef0f3" if IS_DARK else "#111318")
-INPUT_BDR    = ("rgba(255,255,255,0.22)" if IS_DARK else "rgba(0,0,0,0.16)")
+INPUT_BDR    = ("rgba(255,255,255,0.22)" if IS_DARK else "rgba(0,0,0,0.20)")
 PLACEHOLDER  = ("rgba(240,242,245,0.55)" if IS_DARK else "rgba(17,19,24,0.55)")
-SHADOW_SM    = ("0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.25)"
-               if IS_DARK else
-               "0 1px 2px rgba(0,0,0,.06), 0 10px 28px rgba(0,0,0,.08)")
-SHADOW_LG    = ("0 10px 35px rgba(0,0,0,.40)"
-               if IS_DARK else
-               "0 18px 45px rgba(16,24,40,.20)")
 
 st.markdown(f"""
 <style>
-:root {{
-  --accent:{ACCENT};
-  --surface:{SURFACE};
-  --card:{CARD};
-  --border:{BORDER};
-  --text:{TEXT};
-  --sidebar-bg:{SIDEBAR_BG};
-  --sidebar-text:{SIDEBAR_TEXT};
-  --input-bg:{INPUT_BG};
-  --input-text:{INPUT_TEXT};
-  --input-border:{INPUT_BDR};
-  --placeholder:{PLACEHOLDER};
-  --shadow-sm:{SHADOW_SM};
-  --shadow-lg:{SHADOW_LG};
-  --radius-xl: 18px;
-  --radius-lg: 14px;
-  --radius-md: 10px;
+/* -------- Largura máxima do container (widescreen) -------- */
+@media (min-width: 1400px) {{
+  .block-container {{ max-width: 1600px !important; }}
 }}
 
+/* -------- Cores base -------- */
 html, body, [class*="block-container"] {{
-  background: var(--surface) !important;
-  color: var(--text) !important;
-  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, Arial, "Noto Sans", sans-serif !important;
+  background: {SURFACE} !important;
+  color: {TEXT} !important;
+  font-family: "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,Arial,"Noto Sans",sans-serif !important;
   letter-spacing: .2px;
 }}
+[class*="block-container"] {{ padding-top: 1.4rem; }}
 
-[class*="block-container"] {{
-  padding-top: 1.1rem;
-}}
-
-section.main > div:has(> div[data-testid="stVerticalBlock"]) {{
-  backdrop-filter: saturate(140%) blur(18px);
-}}
-
-h1#app-title {{
-  color: var(--accent) !important;
-  letter-spacing: .3px;
-  font-weight: 700;
-  margin-bottom: .35rem;
-  text-shadow: 0 1px 0 rgb(0 0 0 / .06);
-}}
-
-h2,h3,h4, label, legend, .stMarkdown p {{ color: var(--text) !important; }}
-
-hr, .stDivider:after {{ border-color: var(--border) !important; opacity: .6; }}
-
-/* Sidebar mica/acrylic */
+/* Sidebar */
 div[data-testid="stSidebar"] {{
-  background: var(--sidebar-bg) !important;
-  border-right: 1px solid var(--border);
-  backdrop-filter: blur(16px) saturate(140%);
-  box-shadow: var(--shadow-sm);
+  background: {SIDEBAR_BG} !important;
+  border-right: 1px solid rgba(0,0,0,.10) !important;
 }}
-div[data-testid="stSidebar"] * {{ color: var(--sidebar-text) !important; }}
+div[data-testid="stSidebar"] * {{ color: {SIDEBAR_TEXT} !important; }}
 div[data-testid="stSidebar"] [data-baseweb="radio"] label,
-div[data-testid="stSidebar"] [data-baseweb="radio"] span {{
-  color: var(--sidebar-text) !important;
-  font-weight: 600;
-}}
+div[data-testid="stSidebar"] [data-baseweb="radio"] span {{ font-weight: 600; }}
 
 /* Cards/Forms */
 div[data-testid="stForm"],
 .stDataFrame, .element-container:has(> div[data-testid="stDataFrame"]) {{
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-sm);
+  background: {CARD};
+  border: 1px solid {BORDER};
+  border-radius: 16px;
+  box-shadow: 0 12px 28px rgba(16,24,40,.10);
   padding: .9rem;
-}}
-.block-container .stAlert > div {{
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
 }}
 
 /* Inputs */
 input, textarea, select {{
-  color: var(--input-text) !important;
-  background: var(--input-bg) !important;
-  border: 1px solid var(--input-border) !important;
+  color: {INPUT_TEXT} !important;
+  background: {INPUT_BG} !important;
+  border: 1px solid {INPUT_BDR} !important;
   border-radius: 12px !important;
-  transition: box-shadow .18s ease, border-color .18s ease, transform .06s ease;
 }}
-input:focus, textarea:focus, select:focus {{
-  outline: none !important;
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px color-mix(in hsl, var(--accent) 30%, transparent);
-}}
-div[role="textbox"] *, .stTextInput input, .stDateInput input, .stNumberInput input {{
-  color: var(--input-text) !important;
-  background: var(--input-bg) !important;
-}}
-::placeholder {{ color: var(--placeholder) !important; }}
+::placeholder {{ color: {PLACEHOLDER} !important; }}
 
-/* Botões */
+/* Título SEMPRE preto */
+h1#app-title {{ color:#111111 !important; text-shadow:none !important; }}
+
+/* Botões laranja com texto preto */
 .stButton>button, .stDownloadButton>button,
 div[data-testid="stForm"] .stButton>button {{
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 94%, #fff 6%), var(--accent));
+  background: {ACCENT} !important;
   color: #111 !important;
   border: none !important;
   border-radius: 12px !important;
   padding: .62rem 1.05rem !important;
   font-weight: 800 !important;
   letter-spacing: .2px;
-  box-shadow: 0 2px 0 rgb(0 0 0 / .15), var(--shadow-sm);
+  box-shadow: 0 8px 22px rgba(215,84,19,.25) !important;
   transition: transform .06s ease, filter .18s ease, box-shadow .18s ease;
 }}
-.stButton>button:hover, .stDownloadButton>button:hover {{ filter: brightness(1.03); transform: translateY(-1px); }}
-.stButton>button:active, .stDownloadButton>button:active {{ transform: translateY(0); box-shadow: 0 1px 0 rgb(0 0 0 / .18); }}
-div[data-testid="stForm"] .stButton>button:disabled {{
-  background: linear-gradient(180deg, #d2d2d2, #c7c7c7) !important;
-  color: #222 !important; box-shadow: none !important; opacity: .85 !important;
-}}
+.stButton>button:hover, .stDownloadButton>button:hover {{ filter:brightness(1.03); transform:translateY(-1px); }}
+.stButton>button:active, .stDownloadButton>button:active {{ transform:translateY(0); }}
 
-/* DataFrame */
-[data-testid="stDataFrame"] table {{ border-collapse: separate !important; border-spacing: 0 !important; }}
-[data-testid="stDataFrame"] thead th {{
-  color: var(--text) !important; font-weight: 700 !important;
-  border-bottom: 1px solid var(--border) !important; background: transparent !important;
-}}
-[data-testid="stDataFrame"] tbody td {{
-  color: var(--text) !important; background: transparent !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent) !important;
-}}
-[data-testid="stDataFrame"] tbody tr:hover td {{ background: color-mix(in srgb, var(--card) 86%, #0000) !important; }}
+/* Métricas: preto no claro e claro no escuro */
+html:root:not(.dark) .stMetric label,
+html:root:not(.dark) .stMetric div[data-testid="stMetricValue"]{{ color:#111111 !important; }}
+html.dark .stMetric label,
+html.dark .stMetric div[data-testid="stMetricValue"]{{ color:#f5f6f8 !important; }}
 
-/* Radios/Checkbox */
-[data-baseweb="radio"] > div {{ gap: .5rem !important; }}
-[data-baseweb="radio"] svg {{ filter: drop-shadow(0 0 0 rgba(0,0,0,0)); }}
-[data-baseweb="checkbox"] > label > div {{ border-radius: 8px !important; }}
-
-/* Scrollbar */
-* {{ scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--accent) 55%, #9aa) transparent; }}
-*::-webkit-scrollbar {{ height: 10px; width: 10px; }}
-*::-webkit-scrollbar-thumb {{ background: color-mix(in srgb, var(--accent) 55%, #9aa); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }}
-*::-webkit-scrollbar-track {{ background: transparent; }}
-
-/* Tooltips Altair */
-.vega-embed summary {{ color: var(--text) !important; }}
-</style>
-""", unsafe_allow_html=True)
-
-# ===== Hotfix 1: sidebar clara legível + cabeçalho sem corte =====
-st.markdown("""
-<style>
-:root { --sidebar-text-override: #2b2f36; }
-html:root:not(.dark) div[data-testid="stSidebar"] * { color: var(--sidebar-text-override) !important; opacity: 1 !important; text-shadow: none !important; }
-html:root:not(.dark) div[data-testid="stSidebar"] { background: rgba(255,255,255,0.92) !important; border-right: 1px solid rgba(0,0,0,0.12) !important; }
-div[data-testid="stSidebar"] [data-baseweb="radio"] label, div[data-testid="stSidebar"] [data-baseweb="radio"] span { color: inherit !important; font-weight: 600 !important; }
-[class*="block-container"] { padding-top: 1.6rem !important; overflow: visible !important; }
-h1#app-title { position: relative; z-index: 2; margin-top: .1rem !important; }
-section.main > div:has(> div[data-testid="stVerticalBlock"]) { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
-</style>
-""", unsafe_allow_html=True)
-
-# ===== Hotfix 2: CLARO 100% branco + título preto / ESCURO: sidebar cinza escuro =====
-st.markdown("""
-<style>
-/* Claro: fundo branco total e textos escuros */
-html:root:not(.dark) body,
-html:root:not(.dark) .stApp,
-html:root:not(.dark) .main,
-html:root:not(.dark) section.main,
-html:root:not(.dark) [class*="block-container"]{ background:#ffffff !important; color:#111318 !important; }
-/* Título preto no claro */
-html:root:not(.dark) h1#app-title{ color:#111111 !important; text-shadow:none !important; }
-/* Cards/Forms no claro */
-html:root:not(.dark) div[data-testid="stForm"],
-html:root:not(.dark) .stDataFrame,
-html:root:not(.dark) .element-container:has(> div[data-testid="stDataFrame"]){
-  background:#ffffff !important; border:1px solid rgba(0,0,0,.12) !important; box-shadow:0 10px 28px rgba(16,24,40,.10) !important; border-radius:16px !important;
-}
-/* Inputs no claro */
-html:root:not(.dark) input, html:root:not(.dark) textarea, html:root:not(.dark) select{
-  background:#ffffff !important; color:#111111 !important; border:1px solid rgba(0,0,0,.20) !important;
-}
-html:root:not(.dark) ::placeholder{ color:rgba(17,19,24,.55) !important; }
-/* Barras/linhas no claro */
-html:root:not(.dark) hr, html:root:not(.dark) .stDivider:after{ border-color:rgba(0,0,0,.12) !important; }
-/* ESCURO: sidebar cinza escuro legível */
-html.dark div[data-testid="stSidebar"]{ background:#121316 !important; border-right:1px solid rgba(255,255,255,.10) !important; }
-html.dark div[data-testid="stSidebar"] *{ color:#e6e6e8 !important; opacity:1 !important; text-shadow:none !important; }
-html.dark div[data-testid="stSidebar"] [data-baseweb="radio"] label,
-html.dark div[data-testid="stSidebar"] [data-baseweb="radio"] span{ color:#f1f1f3 !important; font-weight:600 !important; }
 /* DataFrame contraste no claro */
-html:root:not(.dark) [data-testid="stDataFrame"] thead th{ color:#111318 !important; border-bottom:1px solid rgba(0,0,0,.12) !important; }
-html:root:not(.dark) [data-testid="stDataFrame"] tbody td{ color:#111318 !important; background:#ffffff !important; border-bottom:1px solid rgba(0,0,0,.06) !important; }
-/* Gráfico (Altair) no claro */
-html:root:not(.dark) .vega-embed *{ color:#111318 !important; }
+html:root:not(.dark) [data-testid="stDataFrame"] thead th{{ color:#111318 !important; border-bottom:1px solid rgba(0,0,0,.12) !important; }}
+html:root:not(.dark) [data-testid="stDataFrame"] tbody td{{ color:#111318 !important; background:#ffffff !important; border-bottom:1px solid rgba(0,0,0,.06) !important; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -331,11 +208,13 @@ with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=Fals
 with st.form("obra_form"):
     st.subheader("✅Dados da obra")
 
+    # linha 1
     a,b,c = st.columns([2,1,1])
     obra = a.text_input("Nome da obra", st.session_state.obra, placeholder="Ex.: Residencial Jardim Tropical")
     data_obra = b.date_input("Data", st.session_state.data_obra, format="DD/MM/YYYY")
     area_padrao = c.number_input("Área do CP (cm²)", min_value=0.0001, value=float(st.session_state.area_padrao), step=0.01, format="%.2f")
 
+    # linha 2 — NOVOS CAMPOS
     d,e,f = st.columns([1,1,1])
     data_moldagem = d.date_input("Data de moldagem", st.session_state.data_moldagem, format="DD/MM/YYYY")
     data_ruptura  = e.date_input("Data de ruptura",  st.session_state.data_ruptura,  format="DD/MM/YYYY")
@@ -386,6 +265,7 @@ with st.form("cp_form", clear_on_submit=True):
                 "kgf_cm2": float(s_kgfcm2),
                 "kn_cm2":  float(s_kncm2),
                 "mpa":     float(s_mpa),
+                # novos campos (CSV)
                 "data_moldagem": st.session_state.data_moldagem.isoformat(),
                 "data_ruptura":  st.session_state.data_ruptura.isoformat(),
                 "idade_dias":    max(0, (st.session_state.data_ruptura - st.session_state.data_moldagem).days),
@@ -471,32 +351,36 @@ if st.session_state.registros:
     with c:
         dp = _dp(df["mpa"].tolist()); st.metric("DP (MPa)", f"{(dp if dp is not None else 0.0):.3f}")
 
-    # 6) Gráfico — 1 ponto por linha (sem aggregate=None)
+    # 6) Gráfico — visível em qualquer tema
     st.subheader("📈Gráfico de ruptura (MPa por CP)")
     chart_df = pd.DataFrame({
         "Código CP": df["codigo_cp"].astype(str).values,
         "MPa":       df["mpa"].astype(float).values
     }).reset_index(drop=False).rename(columns={"index": "rowid"})
 
-    axis_color = ("#f5f6f8" if st.session_state.theme == "Escuro" else "#111318")
-    grid_color = ("rgba(255,255,255,0.20)" if st.session_state.theme == "Escuro" else "rgba(0,0,0,0.12)")
+    bg = "#0f1115" if st.session_state.theme == "Escuro" else "#ffffff"
+    axis_color = "#e8eaed" if st.session_state.theme == "Escuro" else "#111318"
+    grid_color = "rgba(255,255,255,0.22)" if st.session_state.theme == "Escuro" else "#e5e7eb"
     y_max = float(chart_df["MPa"].max() * 1.15) if len(chart_df) else 1.0
 
     points = (
-        alt.Chart(chart_df)
-          .mark_point(size=90, filled=True, color=ACCENT)
+        alt.Chart(chart_df, background=bg)
+          .mark_point(size=110, filled=True, color=ACCENT, opacity=0.95)
           .encode(
-              x=alt.X("Código CP:N", sort=None, title="Código do CP"),
+              x=alt.X("Código CP:N", sort=None, title="Código do CP",
+                      axis=alt.Axis(labelAngle=0)),
               y=alt.Y("MPa:Q", scale=alt.Scale(domain=[0, y_max]), title="MPa"),
               detail="rowid:N",
               tooltip=[alt.Tooltip("Código CP:N", title="Código CP"),
                        alt.Tooltip("MPa:Q", format=".3f")]
           )
-          .properties(height=340)
+          .properties(height=360, padding={"left":10,"right":10,"top":10,"bottom":10},
+                      title="Gráfico de ruptura (MPa por CP)")
           .configure_axis(labelColor=axis_color, titleColor=axis_color,
                           gridColor=grid_color, domainColor=axis_color)
-          .configure_title(color=axis_color)
           .configure_legend(labelColor=axis_color, titleColor=axis_color)
+          .configure_title(color=axis_color)
+          .configure_view(stroke="transparent")
     )
 
     st.altair_chart(points, use_container_width=True)
@@ -550,6 +434,7 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
     info = f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²"
     pdf.cell(0, 6, _latin1_safe(info), ln=1, align="C")
 
+    # Linha extra com Moldagem/Ruptura/Idade
     mold = st.session_state.data_moldagem.strftime('%d/%m/%Y')
     rupt = st.session_state.data_ruptura.strftime('%d/%m/%Y')
     idade = max(0, (st.session_state.data_ruptura - st.session_state.data_moldagem).days)
@@ -570,6 +455,7 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
     pdf.ln(12); gy = pdf.get_y() + 6; gx = left + 2; gw = 180 - (left - 15); gh = 78
     draw_scatter_on_pdf(pdf, df, x=gx, y=gy, w=gw, h=gh, accent=ACCENT)
 
+    # ID e Normas
     pdf.set_y(gy + gh + 34)
     pdf.set_font("Arial", "I", 9)
     report_id = _gen_report_id(data_obra)
@@ -618,8 +504,10 @@ with b3:
         safe_obra = _safe_filename(st.session_state.obra)
         fname = f"Lote_Rupturas_{safe_obra}_{data_str}_{report_id}.pdf" if safe_obra else f"Lote_Rupturas_{data_str}_{report_id}.pdf"
 
+        # Download
         st.download_button("📄 Exportar para PDF", data=BytesIO(pdf_bytes), file_name=fname, mime="application/pdf")
 
+        # Imprimir em nova aba
         b64 = base64.b64encode(pdf_bytes).decode("utf-8")
         components.html(f"""
         <div>
