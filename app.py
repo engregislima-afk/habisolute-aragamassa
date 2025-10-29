@@ -331,7 +331,6 @@ if st.session_state.registros:
     lote_rupt = st.session_state.data_ruptura
     lote_idade = max(0, (lote_rupt - lote_mold).days)
 
-    # adiciona/garante colunas novas
     if "data_moldagem" not in df.columns:
         df["data_moldagem"] = lote_mold.isoformat()
     df["data_moldagem"] = df["data_moldagem"].fillna(lote_mold.isoformat())
@@ -344,10 +343,10 @@ if st.session_state.registros:
         df["idade_dias"] = lote_idade
     df["idade_dias"] = df["idade_dias"].fillna(lote_idade).astype(int)
 
-    # garante tensões caso venham faltando (ou recalcula após normalize)
-    if "kgf_cm2" not in df.columns or "kn_cm2" not in df.columns or "mpa" not in df.columns:
+    # 2.1) Garante tensões
+    if ("kgf_cm2" not in df.columns) or ("kn_cm2" not in df.columns) or ("mpa" not in df.columns):
         df["kgf_cm2"], df["kn_cm2"], df["mpa"] = None, None, None
-    if df[["kgf_cm2","kn_cm2","mpa"]].isnull().any().any():
+    if df[["kgf_cm2", "kn_cm2", "mpa"]].isnull().any().any():
         vals = []
         for r in df.itertuples(index=False):
             s_kgfcm2, s_kncm2, s_mpa = tensoes_from_kgf(float(r.carga_kgf), float(r.area_cm2))
@@ -376,17 +375,17 @@ if st.session_state.registros:
         }
     )
 
-    # 4) Se editou algo, persistimos no session_state
+    # 4) Persistência após edição
     if not edited.equals(df[edited.columns]):
         new_regs = []
         for row in edited.itertuples(index=False):
-            s_kgfcm2, s_kncm2, s_mpa = tensoes_from_kgf(float(row.carga_kgf), float(row.area_cm2))
+            s_kgfcm2, s_kn_cm2, s_mpa = tensoes_from_kgf(float(row.carga_kgf), float(row.area_cm2))
             new_regs.append({
                 "codigo_cp": str(row.codigo_cp),
                 "carga_kgf": float(row.carga_kgf),
                 "area_cm2":  float(row.area_cm2),
                 "kgf_cm2":   float(s_kgfcm2),
-                "kn_cm2":    float(s_kncm2),
+                "kn_cm2":    float(s_kn_cm2),
                 "mpa":       float(s_mpa),
                 "data_moldagem": str(row.data_moldagem),
                 "data_ruptura":  str(row.data_ruptura),
@@ -396,50 +395,46 @@ if st.session_state.registros:
         df = pd.DataFrame(st.session_state.registros)
 
     # 5) Métricas
-    a,b,c = st.columns(3)
+    a, b, c = st.columns(3)
     with a: st.metric("Média (kN/cm²)", f"{mean(df['kn_cm2']):.4f}")
     with b: st.metric("Média (MPa)",    f"{mean(df['mpa']):.3f}")
     with c:
-        dp = _dp(df["mpa"].tolist()); st.metric("DP (MPa)", f"{(dp if dp is not None else 0.0):.3f}")
+        dp = _dp(df["mpa"].tolist())
+        st.metric("DP (MPa)", f"{(dp if dp is not None else 0.0):.3f}")
 
-    # 6) Gráfico — cada registro vira um ponto (sem agregar por código)
-st.subheader("📈Gráfico de ruptura (MPa por CP)")
+    # 6) Gráfico — 1 ponto por linha (sem aggregate=None)
+    st.subheader("📈Gráfico de ruptura (MPa por CP)")
+    chart_df = pd.DataFrame({
+        "Código CP": df["codigo_cp"].astype(str).values,
+        "MPa":       df["mpa"].astype(float).values
+    }).reset_index(drop=False).rename(columns={"index": "rowid"})
 
-chart_df = pd.DataFrame({
-    "Código CP": df["codigo_cp"].astype(str).values,
-    "MPa":       df["mpa"].astype(float).values
-}).reset_index(drop=False).rename(columns={"index": "rowid"})  # rowid único por linha
+    axis_color = TEXT
+    grid_color = "rgba(255,255,255,0.20)" if IS_DARK else "rgba(0,0,0,0.12)"
+    y_max = float(chart_df["MPa"].max() * 1.15) if len(chart_df) else 1.0
 
-axis_color = TEXT
-grid_color = "rgba(255,255,255,0.20)" if IS_DARK else "rgba(0,0,0,0.12)"
-y_max = float(chart_df["MPa"].max() * 1.15) if len(chart_df) else 1.0
+    points = (
+        alt.Chart(chart_df)
+          .mark_point(size=90, filled=True, color=ACCENT)
+          .encode(
+              x=alt.X("Código CP:N", sort=None, title="Código do CP"),
+              y=alt.Y("MPa:Q", scale=alt.Scale(domain=[0, y_max]), title="MPa"),
+              detail="rowid:N",
+              tooltip=[
+                  alt.Tooltip("Código CP:N", title="Código CP"),
+                  alt.Tooltip("MPa:Q", format=".3f")
+              ]
+          )
+          .properties(height=340)
+          .configure_axis(labelColor=axis_color, titleColor=axis_color,
+                          gridColor=grid_color, domainColor=axis_color)
+          .configure_title(color=axis_color)
+          .configure_legend(labelColor=axis_color, titleColor=axis_color)
+    )
 
-points = (
-    alt.Chart(chart_df)
-      .mark_point(size=90, filled=True, color=ACCENT)
-      .encode(
-          x=alt.X("Código CP:N", sort=None, title="Código do CP"),
-          # Removido aggregate=None (ilegal no schema)
-          y=alt.Y("MPa:Q", scale=alt.Scale(domain=[0, y_max]), title="MPa"),
-          detail="rowid:N",   # garante 1 ponto por linha
-          tooltip=[
-              alt.Tooltip("Código CP:N", title="Código CP"),
-              alt.Tooltip("MPa:Q", format=".3f")
-          ]
-      )
-      .properties(height=340)
-      .configure_axis(
-          labelColor=axis_color,
-          titleColor=axis_color,
-          gridColor=grid_color,
-          domainColor=axis_color
-      )
-      .configure_title(color=axis_color)
-      .configure_legend(labelColor=axis_color, titleColor=axis_color)
-)
-
-st.altair_chart(points, use_container_width=True)
+    st.altair_chart(points, use_container_width=True)
     st.divider()
+
 else:
     st.info("Nenhum CP lançado ainda. Adicione registros para visualizar tabela e gráfico.")
 
