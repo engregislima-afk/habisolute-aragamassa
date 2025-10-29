@@ -390,6 +390,32 @@ div[data-testid="stHeader"] *:has(#app-title){
 }
 </style>
 """, unsafe_allow_html=True)
+st.markdown("""
+<style>
+/* ===== Fix final: título 100% preto, sem “esmaecimento” herdado ===== */
+
+/* 1) Garante que nenhum contêiner comum do Streamlit esteja com opacity < 1 */
+.stApp, .stAppViewContainer, .main, section.main, [class*="block-container"]{
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+/* 2) Envolve e isola o título para evitar heranças estranhas */
+#app-title-wrap{ isolation:isolate !important; }
+
+/* 3) Título preto de verdade */
+h1#app-title,
+#app-title-wrap h1#app-title *{
+  color:#111111 !important;
+  -webkit-text-fill-color:#111111 !important; /* Chrome/Safari */
+  text-shadow:none !important;
+  opacity:1 !important;
+  filter:none !important;
+  font-weight:800 !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ===================== Conversões & helpers =====================
 KGF_CM2_TO_MPA    = 0.0980665
