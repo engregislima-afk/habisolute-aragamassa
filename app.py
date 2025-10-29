@@ -416,6 +416,32 @@ h1#app-title,
 }
 </style>
 """, unsafe_allow_html=True)
+# === Plano B: título 100% preto garantido ===
+st.markdown("""
+<style>
+/* Esconde o h1 antigo que está herdando opacidade */
+h1#app-title{ display:none !important; }
+
+/* Nosso título independente */
+.hab-title {
+  margin: .6rem 0 .35rem 0;
+  font-weight: 800;
+  font-size: 28px;          /* ajuste se quiser maior/menor */
+  line-height: 1.25;
+  color: #111111 !important;           /* PRETO */
+  -webkit-text-fill-color:#111111 !important;
+  text-shadow: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+.hab-title .emoji { margin-right: .4rem; }
+</style>
+
+<div class="hab-title">
+  <span class="emoji">🏗️</span>
+  <span>Sistema de Rupturas de Argamassa Habisolute</span>
+</div>
+""", unsafe_allow_html=True)
 
 # ===================== Conversões & helpers =====================
 KGF_CM2_TO_MPA    = 0.0980665
