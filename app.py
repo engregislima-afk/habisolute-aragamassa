@@ -41,7 +41,8 @@ with st.sidebar:
     st.session_state.theme = st.radio(
         "Tema", ["Escuro", "Claro"],
         horizontal=True,
-        index=1 if st.session_state.theme == "Claro" else 0
+        index=1 if st.session_state.theme == "Claro" else 0,
+        key="pref_tema"  # <<< evita IDs duplicados
     )
 
 # ===================== CSS base — Windows 11 look =====================
@@ -131,6 +132,15 @@ html.dark .stMetric div[data-testid="stMetricValue"]{{ color:#f5f6f8 !important;
 /* DataFrame contraste no claro */
 html:root:not(.dark) [data-testid="stDataFrame"] thead th{{ color:#111318 !important; border-bottom:1px solid rgba(0,0,0,.12) !important; }}
 html:root:not(.dark) [data-testid="stDataFrame"] tbody td{{ color:#111318 !important; background:#ffffff !important; border-bottom:1px solid rgba(0,0,0,.06) !important; }}
+</style>
+""", unsafe_allow_html=True)
+
+/* Discretiza o topo/toolbar no CLARO */
+st.markdown("""
+<style>
+html:root:not(.dark) div[data-testid="stHeader"]{ background:transparent !important; box-shadow:none !important; }
+div[data-testid="stToolbar"]{ opacity:.28 !important; filter:saturate(.6) !important; transition:opacity .18s, filter .18s; }
+div[data-testid="stToolbar"]:hover{ opacity:.92 !important; filter:none !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -359,8 +369,8 @@ NORMAS_TXT = (
 # ===================== Conversor rápido =====================
 with st.expander("🔁 Conversor rápido (kgf → kN/cm² / MPa)", expanded=False):
     c1,c2 = st.columns(2)
-    kgf = c1.number_input("Carga (kgf)", min_value=0.0, value=0.0, step=0.1, format="%.3f")
-    area_demo = c2.number_input("Área (cm²)", min_value=0.0001, value=st.session_state.area_padrao, step=0.01, format="%.2f")
+    kgf = c1.number_input("Carga (kgf)", min_value=0.0, value=0.0, step=0.1, format="%.3f", key="conv_carga_kgf")
+    area_demo = c2.number_input("Área (cm²)", min_value=0.0001, value=st.session_state.area_padrao, step=0.01, format="%.2f", key="conv_area")
     if kgf and area_demo:
         _, kn, mp = tensoes_from_kgf(kgf, area_demo)
         st.markdown(
@@ -375,16 +385,16 @@ with st.form("obra_form"):
 
     # linha 1
     a,b,c = st.columns([2,1,1])
-    obra = a.text_input("Nome da obra", st.session_state.obra, placeholder="Ex.: Residencial Jardim Tropical")
-    data_obra = b.date_input("Data", st.session_state.data_obra, format="DD/MM/YYYY")
-    area_padrao = c.number_input("Área do CP (cm²)", min_value=0.0001, value=float(st.session_state.area_padrao), step=0.01, format="%.2f")
+    obra = a.text_input("Nome da obra", st.session_state.obra, placeholder="Ex.: Residencial Jardim Tropical", key="obra_nome")
+    data_obra = b.date_input("Data", st.session_state.data_obra, format="DD/MM/YYYY", key="obra_data")
+    area_padrao = c.number_input("Área do CP (cm²)", min_value=0.0001, value=float(st.session_state.area_padrao), step=0.01, format="%.2f", key="obra_area")
 
     # linha 2 — NOVOS CAMPOS
     d,e,f = st.columns([1,1,1])
-    data_moldagem = d.date_input("Data de moldagem", st.session_state.data_moldagem, format="DD/MM/YYYY")
-    data_ruptura  = e.date_input("Data de ruptura",  st.session_state.data_ruptura,  format="DD/MM/YYYY")
+    data_moldagem = d.date_input("Data de moldagem", st.session_state.data_moldagem, format="DD/MM/YYYY", key="obra_mold")
+    data_ruptura  = e.date_input("Data de ruptura",  st.session_state.data_ruptura,  format="DD/MM/YYYY", key="obra_rupt")
     idade_dias = max(0, (data_ruptura - data_moldagem).days)
-    f.number_input("Idade de ruptura (dias)", value=idade_dias, disabled=True)
+    f.number_input("Idade de ruptura (dias)", value=idade_dias, disabled=True, key="obra_idade_ro")
 
     col = st.columns([1,1,2])
     apply_clicked  = col[0].form_submit_button("Aplicar")
@@ -411,8 +421,8 @@ with st.form("obra_form"):
 st.info(f"CPs no lote: **{len(st.session_state.registros)}/12**")
 with st.form("cp_form", clear_on_submit=True):
     st.subheader("✅Lançar ruptura (apenas kgf)")
-    codigo = st.text_input("Código do CP", max_chars=32, placeholder="Ex.: A039.258 / H682 / 037.421")
-    carga  = st.number_input("Carga de ruptura (kgf)", min_value=0.0, step=0.1, format="%.3f")
+    codigo = st.text_input("Código do CP", max_chars=32, placeholder="Ex.: A039.258 / H682 / 037.421", key="cp_codigo")
+    carga  = st.number_input("Carga de ruptura (kgf)", min_value=0.0, step=0.1, format="%.3f", key="cp_carga")
     if carga and st.session_state.area_padrao:
         _, knp, mpp = tensoes_from_kgf(carga, st.session_state.area_padrao)
         st.caption(f"→ Conversões (área {st.session_state.area_padrao:.2f} cm²): **{knp:.5f} kN/cm²** • **{mpp:.4f} MPa**")
@@ -436,7 +446,8 @@ with st.form("cp_form", clear_on_submit=True):
                 "idade_dias":    max(0, (st.session_state.data_ruptura - st.session_state.data_moldagem).days),
             })
             st.success("CP adicionado.")
-            # ===================== Tabela + Gráfico (tela) =====================
+
+# ===================== Tabela + Gráfico (tela) =====================
 if st.session_state.registros:
     # 1) DataFrame bruto
     df = pd.DataFrame(st.session_state.registros).copy()
@@ -487,7 +498,8 @@ if st.session_state.registros:
             "data_moldagem": st.column_config.TextColumn("Data moldagem", disabled=True),
             "data_ruptura":  st.column_config.TextColumn("Data ruptura", disabled=True),
             "idade_dias":    st.column_config.NumberColumn("Idade (dias)", disabled=True),
-        }
+        },
+        key="lote_editor"  # <<< evita IDs duplicados
     )
 
     # 4) Persistência após edição
@@ -516,7 +528,7 @@ if st.session_state.registros:
     with c:
         dp = _dp(df["mpa"].tolist()); st.metric("DP (MPa)", f"{(dp if dp is not None else 0.0):.3f}")
 
-    # 6) Gráfico — visível em qualquer tema
+    # 6) Gráfico — pontos espaçados mesmo com Código CP repetido
     st.subheader("📈Gráfico de ruptura (MPa por CP)")
     chart_df = pd.DataFrame({
         "Código CP": df["codigo_cp"].astype(str).values,
@@ -530,12 +542,14 @@ if st.session_state.registros:
 
     points = (
         alt.Chart(chart_df, background=bg)
+          .transform_window(dup_index='rank()', groupby=['Código CP'])
+          .transform_joinaggregate(total='count()', groupby=['Código CP'])
+          .transform_calculate(offset='(datum.dup_index - (datum.total + 1)/2) * 10')
           .mark_point(size=110, filled=True, color=ACCENT, opacity=0.95)
           .encode(
-              x=alt.X("Código CP:N", sort=None, title="Código do CP",
-                      axis=alt.Axis(labelAngle=0)),
+              x=alt.X("Código CP:N", sort=None, title="Código do CP", axis=alt.Axis(labelAngle=0)),
+              xOffset='offset:Q',
               y=alt.Y("MPa:Q", scale=alt.Scale(domain=[0, y_max]), title="MPa"),
-              detail="rowid:N",
               tooltip=[alt.Tooltip("Código CP:N", title="Código CP"),
                        alt.Tooltip("MPa:Q", format=".3f")]
           )
@@ -552,7 +566,6 @@ if st.session_state.registros:
     st.divider()
 else:
     st.info("Nenhum CP lançado ainda. Adicione registros para visualizar tabela e gráfico.")
-
 # ===================== PDF (fpdf2 desenhando o gráfico) =====================
 def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame, x: float, y: float, w: float, h: float, accent: str | None = None) -> None:
     accent_hex = (accent or ACCENT)
@@ -651,7 +664,8 @@ with b2:
         st.download_button(
             "Baixar CSV",
             data=pd.DataFrame(st.session_state.registros).to_csv(index=False).encode("utf-8"),
-            file_name="rupturas_lote.csv", mime="text/csv"
+            file_name="rupturas_lote.csv", mime="text/csv",
+            key="dl_csv"  # <<< evita IDs duplicados se houver outro download igual
         )
 
 with b3:
