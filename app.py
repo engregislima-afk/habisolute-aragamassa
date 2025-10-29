@@ -24,7 +24,7 @@ except Exception:
 ACCENT = "#d75413"  # laranja Habisolute
 
 # WIDESCREEN
-st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🏗️", layout="wide")
+st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🧪", layout="wide")
 
 if "theme" not in st.session_state: st.session_state.theme = "Claro"  # começa no claro
 if "obra" not in st.session_state: st.session_state.obra = ""
