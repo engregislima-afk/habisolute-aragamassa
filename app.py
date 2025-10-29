@@ -351,6 +351,45 @@ html:root:not(.dark) .stMarkdown h1#app-title{
 }
 </style>
 """, unsafe_allow_html=True)
+st.markdown("""
+<style>
+/* ====== FIX DEFINITIVO DO TÍTULO ====== */
+
+/* Zera qualquer opacidade no contêiner que contém o título */
+[data-testid="stMarkdownContainer"]:has(#app-title),
+[data-testid="stMarkdownContainer"]:has(#app-title) *{
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+/* Alguns temas colocam opacity no bloco pai; garante 100% */
+section.main:has(#app-title),
+section.main:has(#app-title) *{
+  opacity: 1 !important;
+}
+
+/* Título preto de verdade */
+h1#app-title,
+h1#app-title *{
+  color: #111111 !important;
+  -webkit-text-fill-color:#111111 !important; /* Chrome/Safari */
+  text-shadow: none !important;
+  font-weight: 800 !important;
+}
+
+/* Evita que regras globais de headings "esmaeçam" o h1 */
+.stMarkdown h1#app-title,
+[data-testid="stMarkdownContainer"] h1#app-title{
+  color:#111111 !important;
+}
+
+/* Para quem usa o header do Streamlit transparente: não herdar opacidade */
+div[data-testid="stHeader"] *:has(#app-title){
+  opacity: 1 !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ===================== Conversões & helpers =====================
 KGF_CM2_TO_MPA    = 0.0980665
