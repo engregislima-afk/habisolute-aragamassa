@@ -22,9 +22,11 @@ except Exception:
 
 # ===================== Estado & Tema =====================
 ACCENT = "#d75413"  # laranja Habisolute
+
+# WIDESCREEN
 st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🏗️", layout="wide")
 
-if "theme" not in st.session_state: st.session_state.theme = "Claro"  # começa claro
+if "theme" not in st.session_state: st.session_state.theme = "Claro"  # começa no claro
 if "obra" not in st.session_state: st.session_state.obra = ""
 if "data_obra" not in st.session_state: st.session_state.data_obra = date.today()
 if "area_padrao" not in st.session_state: st.session_state.area_padrao = 16.00
@@ -59,19 +61,19 @@ PLACEHOLDER  = ("rgba(240,242,245,0.55)" if IS_DARK else "rgba(17,19,24,0.55)")
 
 st.markdown(f"""
 <style>
+/* -------- Largura máxima do container (widescreen) -------- */
 @media (min-width: 1400px) {{
   .block-container {{ max-width: 1600px !important; }}
 }}
-/* respiro topo e título mais baixo */
-[class*="block-container"]{{ padding-top: 2.2rem !important; }}
 
-/* Base */
+/* -------- Cores base -------- */
 html, body, [class*="block-container"] {{
   background: {SURFACE} !important;
   color: {TEXT} !important;
   font-family: "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,Arial,"Noto Sans",sans-serif !important;
   letter-spacing: .2px;
 }}
+[class*="block-container"] {{ padding-top: 1.4rem; }}
 
 /* Sidebar */
 div[data-testid="stSidebar"] {{
@@ -79,6 +81,8 @@ div[data-testid="stSidebar"] {{
   border-right: 1px solid rgba(0,0,0,.10) !important;
 }}
 div[data-testid="stSidebar"] * {{ color: {SIDEBAR_TEXT} !important; }}
+div[data-testid="stSidebar"] [data-baseweb="radio"] label,
+div[data-testid="stSidebar"] [data-baseweb="radio"] span {{ font-weight: 600; }}
 
 /* Cards/Forms */
 div[data-testid="stForm"],
@@ -99,6 +103,25 @@ input, textarea, select {{
 }}
 ::placeholder {{ color: {PLACEHOLDER} !important; }}
 
+/* Título SEMPRE preto */
+h1#app-title {{ color:#111111 !important; text-shadow:none !important; }}
+
+/* Botões laranja com texto preto */
+.stButton>button, .stDownloadButton>button,
+div[data-testid="stForm"] .stButton>button {{
+  background: {ACCENT} !important;
+  color: #111 !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: .62rem 1.05rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .2px;
+  box-shadow: 0 8px 22px rgba(215,84,19,.25) !important;
+  transition: transform .06s ease, filter .18s ease, box-shadow .18s ease;
+}}
+.stButton>button:hover, .stDownloadButton>button:hover {{ filter:brightness(1.03); transform:translateY(-1px); }}
+.stButton>button:active, .stDownloadButton>button:active {{ transform:translateY(0); }}
+
 /* Métricas: preto no claro e claro no escuro */
 html:root:not(.dark) .stMetric label,
 html:root:not(.dark) .stMetric div[data-testid="stMetricValue"]{{ color:#111111 !important; }}
@@ -108,38 +131,15 @@ html.dark .stMetric div[data-testid="stMetricValue"]{{ color:#f5f6f8 !important;
 /* DataFrame contraste no claro */
 html:root:not(.dark) [data-testid="stDataFrame"] thead th{{ color:#111318 !important; border-bottom:1px solid rgba(0,0,0,.12) !important; }}
 html:root:not(.dark) [data-testid="stDataFrame"] tbody td{{ color:#111318 !important; background:#ffffff !important; border-bottom:1px solid rgba(0,0,0,.06) !important; }}
-
-/* Botões laranja texto preto (sempre) */
-:root{{ --hab-accent:{ACCENT}; --hab-text:#111; }}
-.stButton>button, .stDownloadButton>button,
-div[data-testid="stForm"] .stButton>button, button[kind] {{
-  background: var(--hab-accent) !important;
-  color: var(--hab-text) !important;
-  border: none !important;
-  border-radius: 12px !important;
-  padding: .62rem 1.05rem !important;
-  font-weight: 800 !important;
-  letter-spacing: .2px;
-  box-shadow: 0 8px 22px rgba(215,84,19,.25) !important;
-}}
-.stButton>button:hover, .stDownloadButton>button:hover,
-div[data-testid="stForm"] .stButton>button:hover{{ filter:brightness(1.03); transform:translateY(-1px); }}
-.stButton>button:disabled,
-div[data-testid="stForm"] .stButton>button:disabled{{
-  background:#f0a77f !important; color:#222 !important; box-shadow:none !important; opacity:.85 !important;
-}}
-
-/* CLARO 100% branco */
-html:root:not(.dark) html,
-html:root:not(.dark) body,
-html:root:not(.dark) .stApp,
-html:root:not(.dark) .stAppViewContainer,
-html:root:not(.dark) .main,
-html:root:not(.dark) section.main,
-html:root:not(.dark) [class*="block-container"]{{ background:#ffffff !important; color:#111 !important; }}
-html:root:not(.dark) input, html:root:not(.dark) textarea, html:root:not(.dark) select{{ background:#ffffff !important; color:#111 !important; border:1px solid rgba(0,0,0,.22) !important; }}
 </style>
 """, unsafe_allow_html=True)
+
+# ===== Título
+st.markdown(
+    "<h1 id='app-title' style='margin:0'>🏗️Sistema de Rupturas de Argamassa Habisolute</h1>",
+    unsafe_allow_html=True
+)
+st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
 
 # ===================== Conversões & helpers =====================
 KGF_CM2_TO_MPA    = 0.0980665
@@ -179,6 +179,7 @@ def _hex_to_rgb(hexstr: str):
     return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
 
 def _gen_report_id(dt: date) -> str:
+    # Ex.: 20251023-A453DA
     return f"{dt.strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}"
 
 # ===== Normas (usadas no PDF e exibidas como rodapé do app)
@@ -264,6 +265,7 @@ with st.form("cp_form", clear_on_submit=True):
                 "kgf_cm2": float(s_kgfcm2),
                 "kn_cm2":  float(s_kncm2),
                 "mpa":     float(s_mpa),
+                # novos campos (CSV)
                 "data_moldagem": st.session_state.data_moldagem.isoformat(),
                 "data_ruptura":  st.session_state.data_ruptura.isoformat(),
                 "idade_dias":    max(0, (st.session_state.data_ruptura - st.session_state.data_moldagem).days),
@@ -271,8 +273,10 @@ with st.form("cp_form", clear_on_submit=True):
             st.success("CP adicionado.")
             # ===================== Tabela + Gráfico (tela) =====================
 if st.session_state.registros:
+    # 1) DataFrame bruto
     df = pd.DataFrame(st.session_state.registros).copy()
 
+    # 2) Normalização para retrocompatibilidade
     lote_mold = st.session_state.data_moldagem
     lote_rupt = st.session_state.data_ruptura
     lote_idade = max(0, (lote_rupt - lote_mold).days)
@@ -289,6 +293,7 @@ if st.session_state.registros:
         df["idade_dias"] = lote_idade
     df["idade_dias"] = df["idade_dias"].fillna(lote_idade).astype(int)
 
+    # 2.1) Garante tensões
     if "kgf_cm2" not in df.columns or "kn_cm2" not in df.columns or "mpa" not in df.columns:
         df["kgf_cm2"], df["kn_cm2"], df["mpa"] = None, None, None
     if df[["kgf_cm2","kn_cm2","mpa"]].isnull().any().any():
@@ -300,6 +305,7 @@ if st.session_state.registros:
         df["kn_cm2"]  = [v[1] for v in vals]
         df["mpa"]     = [v[2] for v in vals]
 
+    # 3) Editor
     st.subheader("📋Lote atual (editável)")
     edited = st.data_editor(
         df[[
@@ -319,6 +325,7 @@ if st.session_state.registros:
         }
     )
 
+    # 4) Persistência após edição
     if not edited.equals(df[edited.columns]):
         new_regs = []
         for row in edited.itertuples(index=False):
@@ -337,12 +344,14 @@ if st.session_state.registros:
         st.session_state.registros = new_regs
         df = pd.DataFrame(st.session_state.registros)
 
+    # 5) Métricas
     a,b,c = st.columns(3)
     with a: st.metric("Média (kN/cm²)", f"{mean(df['kn_cm2']):.4f}")
     with b: st.metric("Média (MPa)",    f"{mean(df['mpa']):.3f}")
     with c:
         dp = _dp(df["mpa"].tolist()); st.metric("DP (MPa)", f"{(dp if dp is not None else 0.0):.3f}")
 
+    # 6) Gráfico — visível em qualquer tema
     st.subheader("📈Gráfico de ruptura (MPa por CP)")
     chart_df = pd.DataFrame({
         "Código CP": df["codigo_cp"].astype(str).values,
@@ -358,7 +367,8 @@ if st.session_state.registros:
         alt.Chart(chart_df, background=bg)
           .mark_point(size=110, filled=True, color=ACCENT, opacity=0.95)
           .encode(
-              x=alt.X("Código CP:N", sort=None, title="Código do CP", axis=alt.Axis(labelAngle=0)),
+              x=alt.X("Código CP:N", sort=None, title="Código do CP",
+                      axis=alt.Axis(labelAngle=0)),
               y=alt.Y("MPa:Q", scale=alt.Scale(domain=[0, y_max]), title="MPa"),
               detail="rowid:N",
               tooltip=[alt.Tooltip("Código CP:N", title="Código CP"),
@@ -379,10 +389,6 @@ else:
     st.info("Nenhum CP lançado ainda. Adicione registros para visualizar tabela e gráfico.")
 
 # ===================== PDF (fpdf2 desenhando o gráfico) =====================
-def _hex_to_rgb(hexstr: str):
-    s = hexstr.lstrip("#")
-    return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
-
 def draw_scatter_on_pdf(pdf: "FPDF", df: pd.DataFrame, x: float, y: float, w: float, h: float, accent: str | None = None) -> None:
     accent_hex = (accent or ACCENT)
     pdf.set_draw_color(220, 220, 220); pdf.rect(x, y, w, h)
@@ -428,6 +434,7 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
     info = f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²"
     pdf.cell(0, 6, _latin1_safe(info), ln=1, align="C")
 
+    # Linha extra com Moldagem/Ruptura/Idade
     mold = st.session_state.data_moldagem.strftime('%d/%m/%Y')
     rupt = st.session_state.data_ruptura.strftime('%d/%m/%Y')
     idade = max(0, (st.session_state.data_ruptura - st.session_state.data_moldagem).days)
@@ -448,6 +455,7 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
     pdf.ln(12); gy = pdf.get_y() + 6; gx = left + 2; gw = 180 - (left - 15); gh = 78
     draw_scatter_on_pdf(pdf, df, x=gx, y=gy, w=gw, h=gh, accent=ACCENT)
 
+    # ID e Normas
     pdf.set_y(gy + gh + 34)
     pdf.set_font("Arial", "I", 9)
     report_id = _gen_report_id(data_obra)
@@ -496,8 +504,10 @@ with b3:
         safe_obra = _safe_filename(st.session_state.obra)
         fname = f"Lote_Rupturas_{safe_obra}_{data_str}_{report_id}.pdf" if safe_obra else f"Lote_Rupturas_{data_str}_{report_id}.pdf"
 
+        # Download
         st.download_button("📄 Exportar para PDF", data=BytesIO(pdf_bytes), file_name=fname, mime="application/pdf")
 
+        # Imprimir em nova aba
         b64 = base64.b64encode(pdf_bytes).decode("utf-8")
         components.html(f"""
         <div>
@@ -527,14 +537,14 @@ with b3:
         </script>
         """, height=60)
 
-# ======= Diagnóstico
+# ======= Diagnóstico (acima das normas)
 st.caption(
     ("PDF direto ativo ✅" if not MISSING else "PDF direto inativo ❌") +
     (" • Dependência faltando: " + ", ".join(MISSING) if MISSING else "") +
     " • Conversões: [kgf/cm²] → kN/cm² (×0,00980665) e MPa (×0,0980665)."
 )
 
-# ===== Rodapé
+# ===================== Rodapé do APP (normas + assinatura)
 st.markdown("---")
 st.markdown(
     "**Normas de referência (argamassa):**  \n"
