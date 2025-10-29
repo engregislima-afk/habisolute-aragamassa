@@ -136,7 +136,7 @@ html:root:not(.dark) [data-testid="stDataFrame"] tbody td{{ color:#111318 !impor
 
 # ===== Título
 st.markdown(
-    "<h1 id='app-title' style='margin:0'>🏗️Sistema de Rupturas de Argamassa Habisolute</h1>",
+    "<h1 id='app-title' style='margin:0'>🧪Sistema de Rupturas de Argamassa Habisolute</h1>",
     unsafe_allow_html=True
 )
 st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
