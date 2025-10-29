@@ -135,12 +135,19 @@ html:root:not(.dark) [data-testid="stDataFrame"] tbody td{{ color:#111318 !impor
 </style>
 """, unsafe_allow_html=True)
 
-/* Discretiza o topo/toolbar no CLARO */
 st.markdown("""
 <style>
-html:root:not(.dark) div[data-testid="stHeader"]{ background:transparent !important; box-shadow:none !important; }
-div[data-testid="stToolbar"]{ opacity:.28 !important; filter:saturate(.6) !important; transition:opacity .18s, filter .18s; }
-div[data-testid="stToolbar"]:hover{ opacity:.92 !important; filter:none !important; }
+/* Discretiza o topo/toolbar no CLARO */
+html:root:not(.dark) div[data-testid="stHeader"]{
+  background:transparent !important; box-shadow:none !important;
+}
+div[data-testid="stToolbar"]{
+  opacity:.28 !important; filter:saturate(.6) !important;
+  transition:opacity .18s, filter .18s;
+}
+div[data-testid="stToolbar"]:hover{
+  opacity:.92 !important; filter:none !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
