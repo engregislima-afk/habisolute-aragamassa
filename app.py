@@ -41,6 +41,214 @@ with st.sidebar:
         horizontal=True,
         index=0 if st.session_state.theme == "Escuro" else 1
     )
+    # ===================== CSS global — Windows 11 look =====================
+IS_DARK = (st.session_state.theme == "Escuro")
+
+SURFACE, CARD, BORDER, TEXT = (
+    ("#0b0b0c", "rgba(26,27,30,0.72)", "rgba(255,255,255,0.12)", "#f5f6f8")
+    if IS_DARK else
+    ("#f7f7f8", "rgba(255,255,255,0.75)", "rgba(17,17,17,0.12)", "#111318")
+)
+SIDEBAR_BG   = ("rgba(20,21,24,0.66)" if IS_DARK else "rgba(255,255,255,0.75)")
+SIDEBAR_TEXT = "#FFD2B0" if IS_DARK else ACCENT
+INPUT_BG     = ("rgba(33,35,38,0.66)" if IS_DARK else "#ffffff")
+INPUT_TEXT   = ("#eef0f3" if IS_DARK else "#111318")
+INPUT_BDR    = ("rgba(255,255,255,0.22)" if IS_DARK else "rgba(0,0,0,0.16)")
+PLACEHOLDER  = ("rgba(240,242,245,0.55)" if IS_DARK else "rgba(17,19,24,0.55)")
+SHADOW_SM    = ("0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.25)"
+               if IS_DARK else
+               "0 1px 2px rgba(0,0,0,.06), 0 10px 28px rgba(0,0,0,.08)")
+SHADOW_LG    = ("0 10px 35px rgba(0,0,0,.40)"
+               if IS_DARK else
+               "0 18px 45px rgba(16,24,40,.20)")
+
+st.markdown(f"""
+<style>
+:root {{
+  --accent:{ACCENT};
+  --surface:{SURFACE};
+  --card:{CARD};
+  --border:{BORDER};
+  --text:{TEXT};
+  --sidebar-bg:{SIDEBAR_BG};
+  --sidebar-text:{SIDEBAR_TEXT};
+  --input-bg:{INPUT_BG};
+  --input-text:{INPUT_TEXT};
+  --input-border:{INPUT_BDR};
+  --placeholder:{PLACEHOLDER};
+  --shadow-sm:{SHADOW_SM};
+  --shadow-lg:{SHADOW_LG};
+  --radius-xl: 18px;
+  --radius-lg: 14px;
+  --radius-md: 10px;
+}}
+
+html, body, [class*="block-container"] {{
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, Arial, "Noto Sans", sans-serif !important;
+  letter-spacing: .2px;
+}}
+
+[class*="block-container"] {{
+  padding-top: 1.1rem;
+}}
+
+section.main > div:has(> div[data-testid="stVerticalBlock"]) {{
+  backdrop-filter: saturate(140%) blur(18px);
+}}
+
+h1#app-title {{
+  color: var(--accent) !important;
+  letter-spacing: .3px;
+  font-weight: 700;
+  margin-bottom: .35rem;
+  text-shadow: 0 1px 0 rgb(0 0 0 / .06);
+}}
+
+h2,h3,h4, label, legend, .stMarkdown p {{
+  color: var(--text) !important;
+}}
+
+hr, .stDivider:after {{
+  border-color: var(--border) !important;
+  opacity: .6;
+}}
+
+/* ---------- Sidebar estilo Win11 (mica/acrylic) ---------- */
+div[data-testid="stSidebar"] {{
+  background: var(--sidebar-bg) !important;
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: var(--shadow-sm);
+}}
+div[data-testid="stSidebar"] * {{
+  color: var(--sidebar-text) !important;
+}}
+div[data-testid="stSidebar"] [data-baseweb="radio"] label,
+div[data-testid="stSidebar"] [data-baseweb="radio"] span {{
+  color: var(--sidebar-text) !important;
+  font-weight: 600;
+}}
+
+/* ---------- Cards/Forms ---------- */
+div[data-testid="stForm"],
+.stDataFrame, .element-container:has(> div[data-testid="stDataFrame"]) {{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  padding: .9rem;
+}}
+
+.block-container .stAlert > div {{
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}}
+
+/* ---------- Inputs ---------- */
+input, textarea, select {{
+  color: var(--input-text) !important;
+  background: var(--input-bg) !important;
+  border: 1px solid var(--input-border) !important;
+  border-radius: 12px !important;
+  transition: box-shadow .18s ease, border-color .18s ease, transform .06s ease;
+}}
+input:focus, textarea:focus, select:focus {{
+  outline: none !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in hsl, var(--accent) 30%, transparent);
+}}
+div[role="textbox"] *, .stTextInput input, .stDateInput input, .stNumberInput input {{
+  color: var(--input-text) !important;
+  background: var(--input-bg) !important;
+}}
+::placeholder {{ color: var(--placeholder) !important; }}
+
+/* ---------- Botões Win11 ---------- */
+.stButton>button, .stDownloadButton>button,
+div[data-testid="stForm"] .stButton>button {{
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 94%, #fff 6%), var(--accent));
+  color: #111 !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: .62rem 1.05rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .2px;
+  box-shadow: 0 2px 0 rgb(0 0 0 / .15), var(--shadow-sm);
+  transition: transform .06s ease, filter .18s ease, box-shadow .18s ease;
+}}
+.stButton>button:hover, .stDownloadButton>button:hover {{
+  filter: brightness(1.03);
+  transform: translateY(-1px);
+}}
+.stButton>button:active, .stDownloadButton>button:active {{
+  transform: translateY(0);
+  box-shadow: 0 1px 0 rgb(0 0 0 / .18);
+}}
+div[data-testid="stForm"] .stButton>button:disabled {{
+  background: linear-gradient(180deg, #d2d2d2, #c7c7c7) !important;
+  color: #222 !important;
+  box-shadow: none !important;
+  opacity: .85 !important;
+}}
+
+/* ---------- DataFrame ---------- */
+[data-testid="stDataFrame"] table {{
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}}
+[data-testid="stDataFrame"] thead th {{
+  color: var(--text) !important;
+  font-weight: 700 !important;
+  border-bottom: 1px solid var(--border) !important;
+  background: transparent !important;
+}}
+[data-testid="stDataFrame"] tbody td {{
+  color: var(--text) !important;
+  background: transparent !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent) !important;
+}}
+[data-testid="stDataFrame"] tbody tr:hover td {{
+  background: color-mix(in srgb, var(--card) 86%, #0000) !important;
+}}
+
+/* ---------- Seletores/Radio/Checkbox (BaseWeb) ---------- */
+[data-baseweb="radio"] > div {{
+  gap: .5rem !important;
+}}
+[data-baseweb="radio"] svg {{
+  filter: drop-shadow(0 0 0 rgba(0,0,0,0));
+}}
+[data-baseweb="checkbox"] > label > div {{
+  border-radius: 8px !important;
+}}
+
+/* ---------- Scrollbar suave ---------- */
+* {{
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--accent) 55%, #9aa) transparent;
+}}
+*::-webkit-scrollbar {{
+  height: 10px; width: 10px;
+}}
+*::-webkit-scrollbar-thumb {{
+  background: color-mix(in srgb, var(--accent) 55%, #9aa);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}}
+*::-webkit-scrollbar-track {{
+  background: transparent;
+}}
+
+/* ---------- Tooltips Altair ---------- */
+.vega-embed summary {{
+  color: var(--text) !important;
+}}
+</style>
+""", unsafe_allow_html=True)
 
 # ===================== CSS global (um único bloco) =====================
 IS_DARK = (st.session_state.theme == "Escuro")
