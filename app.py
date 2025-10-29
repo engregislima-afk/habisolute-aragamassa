@@ -1,4 +1,4 @@
-# app.py — 🏗️Sistema de Rupturas de Argamassa Habisolute (Win11 look)
+# app.py — 🏗️Sistema de Rupturas de Argamassa Habisolute (Win11 look + hotfix)
 from __future__ import annotations
 from datetime import date
 from statistics import mean, pstdev
@@ -196,31 +196,25 @@ div[data-testid="stForm"] .stButton>button:disabled {{
 }}
 
 /* ---------- DataFrame ---------- */
-[data-testid="stDataFrame"] table {{
-  border-collapse: separate !important;
-  border-spacing: 0 !important;
-}}
+[data-testid="stDataFrame"] table {{ border-collapse: separate !important; border-spacing: 0 !important; }}
 [data-testid="stDataFrame"] thead th {{
-  color: var(--text) !important;
-  font-weight: 700 !important;
-  border-bottom: 1px solid var(--border) !important;
-  background: transparent !important;
+  color: var(--text) !important; font-weight: 700 !important;
+  border-bottom: 1px solid var(--border) !important; background: transparent !important;
 }}
 [data-testid="stDataFrame"] tbody td {{
-  color: var(--text) !important;
-  background: transparent !important;
+  color: var(--text) !important; background: transparent !important;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent) !important;
 }}
 [data-testid="stDataFrame"] tbody tr:hover td {{
   background: color-mix(in srgb, var(--card) 86%, #0000) !important;
 }}
 
-/* ---------- Seletores/Radio/Checkbox (BaseWeb) ---------- */
+/* ---------- Seletores/Checkbox ---------- */
 [data-baseweb="radio"] > div {{ gap: .5rem !important; }}
 [data-baseweb="radio"] svg {{ filter: drop-shadow(0 0 0 rgba(0,0,0,0)); }}
 [data-baseweb="checkbox"] > label > div {{ border-radius: 8px !important; }}
 
-/* ---------- Scrollbar suave ---------- */
+/* ---------- Scrollbar ---------- */
 * {{ scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--accent) 55%, #9aa) transparent; }}
 *::-webkit-scrollbar {{ height: 10px; width: 10px; }}
 *::-webkit-scrollbar-thumb {{
@@ -231,6 +225,46 @@ div[data-testid="stForm"] .stButton>button:disabled {{
 
 /* ---------- Tooltips Altair ---------- */
 .vega-embed summary {{ color: var(--text) !important; }}
+</style>
+""", unsafe_allow_html=True)
+
+# ===== Hotfix visual: sidebar legível (claro) + cabeçalho sem corte =====
+st.markdown("""
+<style>
+:root { --sidebar-text-override: #2b2f36; }
+/* Sidebar clara: texto escuro e fundo mais sólido */
+html:root:not(.dark) div[data-testid="stSidebar"] * {
+  color: var(--sidebar-text-override) !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+html:root:not(.dark) div[data-testid="stSidebar"] {
+  background: rgba(255,255,255,0.92) !important;
+  border-right: 1px solid rgba(0,0,0,0.12) !important;
+}
+/* Radios na sidebar */
+div[data-testid="stSidebar"] [data-baseweb="radio"] label,
+div[data-testid="stSidebar"] [data-baseweb="radio"] span {
+  color: inherit !important; font-weight: 600 !important;
+}
+/* Cabeçalho sem corte e acima do backdrop */
+[class*="block-container"] { padding-top: 1.6rem !important; overflow: visible !important; }
+h1#app-title { position: relative; z-index: 2; margin-top: .1rem !important; }
+/* Remoção do backdrop do container principal para evitar clipping em alguns browsers */
+section.main > div:has(> div[data-testid="stVerticalBlock"]) {
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+/* Inputs e cartões mais nítidos no claro */
+html:root:not(.dark) input, html:root:not(.dark) textarea, html:root:not(.dark) select {
+  background: #fff !important; color: #111318 !important; border: 1px solid rgba(0,0,0,0.18) !important;
+}
+html:root:not(.dark) ::placeholder { color: rgba(17,19,24,0.55) !important; }
+html:root:not(.dark) div[data-testid="stForm"],
+html:root:not(.dark) .stDataFrame,
+html:root:not(.dark) .element-container:has(> div[data-testid="stDataFrame"]) {
+  box-shadow: 0 8px 26px rgba(16,24,40,.10) !important;
+  border: 1px solid rgba(17,17,17,0.10) !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -460,8 +494,8 @@ if st.session_state.registros:
         "MPa":       df["mpa"].astype(float).values
     }).reset_index(drop=False).rename(columns={"index": "rowid"})  # rowid único por linha
 
-    axis_color = TEXT
-    grid_color = "rgba(255,255,255,0.20)" if IS_DARK else "rgba(0,0,0,0.12)"
+    axis_color = ("#f5f6f8" if IS_DARK else "#111318")
+    grid_color = ("rgba(255,255,255,0.20)" if IS_DARK else "rgba(0,0,0,0.12)")
     y_max = float(chart_df["MPa"].max() * 1.15) if len(chart_df) else 1.0
 
     points = (
@@ -471,18 +505,12 @@ if st.session_state.registros:
               x=alt.X("Código CP:N", sort=None, title="Código do CP"),
               y=alt.Y("MPa:Q", scale=alt.Scale(domain=[0, y_max]), title="MPa"),
               detail="rowid:N",
-              tooltip=[
-                  alt.Tooltip("Código CP:N", title="Código CP"),
-                  alt.Tooltip("MPa:Q", format=".3f")
-              ]
+              tooltip=[alt.Tooltip("Código CP:N", title="Código CP"),
+                       alt.Tooltip("MPa:Q", format=".3f")]
           )
           .properties(height=340)
-          .configure_axis(
-              labelColor=axis_color,
-              titleColor=axis_color,
-              gridColor=grid_color,
-              domainColor=axis_color
-          )
+          .configure_axis(labelColor=axis_color, titleColor=axis_color,
+                          gridColor=grid_color, domainColor=axis_color)
           .configure_title(color=axis_color)
           .configure_legend(labelColor=axis_color, titleColor=axis_color)
     )
