@@ -528,27 +528,45 @@ if st.session_state.registros:
     grid_color = "rgba(255,255,255,0.22)" if st.session_state.theme == "Escuro" else "#e5e7eb"
     y_max = float(chart_df["MPa"].max() * 1.15) if len(chart_df) else 1.0
 
-    points = (
-        alt.Chart(chart_df, background=bg)
-          .mark_point(size=110, filled=True, color=ACCENT, opacity=0.95)
-          .encode(
-              x=alt.X("Código CP:N", sort=None, title="Código do CP",
-                      axis=alt.Axis(labelAngle=0)),
-              y=alt.Y("MPa:Q", scale=alt.Scale(domain=[0, y_max]), title="MPa"),
-              detail="rowid:N",
-              tooltip=[alt.Tooltip("Código CP:N", title="Código CP"),
-                       alt.Tooltip("MPa:Q", format=".3f")]
-          )
-          .properties(height=360, padding={"left":10,"right":10,"top":10,"bottom":10},
-                      title="Gráfico de ruptura (MPa por CP)")
-          .configure_axis(labelColor=axis_color, titleColor=axis_color,
-                          gridColor=grid_color, domainColor=axis_color)
-          .configure_legend(labelColor=axis_color, titleColor=axis_color)
-          .configure_title(color=axis_color)
-          .configure_view(stroke="transparent")
-    )
+    # 6) Gráfico — pontos espaçados mesmo quando o Código CP se repete
+st.subheader("📈Gráfico de ruptura (MPa por CP)")
 
-    st.altair_chart(points, use_container_width=True)
+chart_df = pd.DataFrame({
+    "Código CP": df["codigo_cp"].astype(str).values,
+    "MPa":       df["mpa"].astype(float).values
+}).reset_index(drop=False).rename(columns={"index": "rowid"})
+
+bg = "#0f1115" if st.session_state.theme == "Escuro" else "#ffffff"
+axis_color = "#e8eaed" if st.session_state.theme == "Escuro" else "#111318"
+grid_color = "rgba(255,255,255,0.22)" if st.session_state.theme == "Escuro" else "#e5e7eb"
+y_max = float(chart_df["MPa"].max() * 1.15) if len(chart_df) else 1.0
+
+points = (
+    alt.Chart(chart_df, background=bg)
+      # índice do ponto dentro de cada grupo (mesmo Código CP)
+      .transform_window(dup_index='rank()', groupby=['Código CP'])
+      # tamanho do grupo (quantos pontos tem o mesmo Código CP)
+      .transform_joinaggregate(total='count()', groupby=['Código CP'])
+      # deslocamento (px) para espaçar: centraliza e dá gap entre os pontos
+      .transform_calculate(offset='(datum.dup_index - (datum.total + 1)/2) * 10')  # ajuste 10→ mais/menos espaço
+      .mark_point(size=110, filled=True, color=ACCENT, opacity=0.95)
+      .encode(
+          x=alt.X('Código CP:N', title='Código do CP', sort=None,
+                  axis=alt.Axis(labelAngle=0)),
+          xOffset='offset:Q',  # << chave do espaçamento
+          y=alt.Y('MPa:Q', scale=alt.Scale(domain=[0, y_max]), title='MPa'),
+          tooltip=[alt.Tooltip('Código CP:N', title='Código CP'),
+                   alt.Tooltip('MPa:Q', format='.3f')]
+      )
+      .properties(height=360, padding={"left":10,"right":10,"top":10,"bottom":10},
+                  title='Gráfico de ruptura (MPa por CP)')
+      .configure_axis(labelColor=axis_color, titleColor=axis_color,
+                      gridColor=grid_color, domainColor=axis_color)
+      .configure_title(color=axis_color)
+      .configure_view(stroke='transparent')
+)
+
+st.altair_chart(points, use_container_width=True)
     st.divider()
 else:
     st.info("Nenhum CP lançado ainda. Adicione registros para visualizar tabela e gráfico.")
