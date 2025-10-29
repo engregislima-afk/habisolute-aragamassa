@@ -1,3 +1,4 @@
+
 # app.py — 🏗️Sistema de Rupturas de Argamassa Habisolute
 from __future__ import annotations
 from datetime import date
@@ -22,11 +23,9 @@ except Exception:
 
 # ===================== Estado & Tema =====================
 ACCENT = "#d75413"  # laranja Habisolute
-
-# WIDESCREEN
 st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🏗️", layout="wide")
 
-if "theme" not in st.session_state: st.session_state.theme = "Claro"  # começa no claro
+if "theme" not in st.session_state: st.session_state.theme = "Claro"  # começa claro
 if "obra" not in st.session_state: st.session_state.obra = ""
 if "data_obra" not in st.session_state: st.session_state.data_obra = date.today()
 if "area_padrao" not in st.session_state: st.session_state.area_padrao = 16.00
@@ -61,19 +60,19 @@ PLACEHOLDER  = ("rgba(240,242,245,0.55)" if IS_DARK else "rgba(17,19,24,0.55)")
 
 st.markdown(f"""
 <style>
-/* -------- Largura máxima do container (widescreen) -------- */
 @media (min-width: 1400px) {{
   .block-container {{ max-width: 1600px !important; }}
 }}
+/* respiro topo e título mais baixo */
+[class*="block-container"]{{ padding-top: 2.2rem !important; }}
 
-/* -------- Cores base -------- */
+/* Base */
 html, body, [class*="block-container"] {{
   background: {SURFACE} !important;
   color: {TEXT} !important;
   font-family: "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,Arial,"Noto Sans",sans-serif !important;
   letter-spacing: .2px;
 }}
-[class*="block-container"] {{ padding-top: 1.4rem; }}
 
 /* Sidebar */
 div[data-testid="stSidebar"] {{
@@ -81,8 +80,6 @@ div[data-testid="stSidebar"] {{
   border-right: 1px solid rgba(0,0,0,.10) !important;
 }}
 div[data-testid="stSidebar"] * {{ color: {SIDEBAR_TEXT} !important; }}
-div[data-testid="stSidebar"] [data-baseweb="radio"] label,
-div[data-testid="stSidebar"] [data-baseweb="radio"] span {{ font-weight: 600; }}
 
 /* Cards/Forms */
 div[data-testid="stForm"],
@@ -103,25 +100,6 @@ input, textarea, select {{
 }}
 ::placeholder {{ color: {PLACEHOLDER} !important; }}
 
-/* Título SEMPRE preto */
-h1#app-title {{ color:#111111 !important; text-shadow:none !important; }}
-
-/* Botões laranja com texto preto */
-.stButton>button, .stDownloadButton>button,
-div[data-testid="stForm"] .stButton>button {{
-  background: {ACCENT} !important;
-  color: #111 !important;
-  border: none !important;
-  border-radius: 12px !important;
-  padding: .62rem 1.05rem !important;
-  font-weight: 800 !important;
-  letter-spacing: .2px;
-  box-shadow: 0 8px 22px rgba(215,84,19,.25) !important;
-  transition: transform .06s ease, filter .18s ease, box-shadow .18s ease;
-}}
-.stButton>button:hover, .stDownloadButton>button:hover {{ filter:brightness(1.03); transform:translateY(-1px); }}
-.stButton>button:active, .stDownloadButton>button:active {{ transform:translateY(0); }}
-
 /* Métricas: preto no claro e claro no escuro */
 html:root:not(.dark) .stMetric label,
 html:root:not(.dark) .stMetric div[data-testid="stMetricValue"]{{ color:#111111 !important; }}
@@ -131,119 +109,11 @@ html.dark .stMetric div[data-testid="stMetricValue"]{{ color:#f5f6f8 !important;
 /* DataFrame contraste no claro */
 html:root:not(.dark) [data-testid="stDataFrame"] thead th{{ color:#111318 !important; border-bottom:1px solid rgba(0,0,0,.12) !important; }}
 html:root:not(.dark) [data-testid="stDataFrame"] tbody td{{ color:#111318 !important; background:#ffffff !important; border-bottom:1px solid rgba(0,0,0,.06) !important; }}
-</style>
-""", unsafe_allow_html=True)
 
-# ===== Título
-st.markdown(
-    "<h1 id='app-title' style='margin:0'>🏗️Sistema de Rupturas de Argamassa Habisolute</h1>",
-    unsafe_allow_html=True
-)
-st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
-# === HOTFIX FINAL (coloque no FIM do arquivo) ===
-st.markdown("""
-<style>
-/* 0) Força precedência deste bloco */
-:root { --_fix_20251029: 1; }
-
-/* 1) MODO CLARO totalmente branco */
-html:root:not(.dark) html,
-html:root:not(.dark) body,
-html:root:not(.dark) .stApp,
-html:root:not(.dark) .stAppViewContainer,
-html:root:not(.dark) .main,
-html:root:not(.dark) section.main,
-html:root:not(.dark) [class*="block-container"]{
-  background: #ffffff !important;
-  color: #111111 !important;
-}
-
-/* 2) Título e subtítulos sempre em preto no CLARO */
-html:root:not(.dark) h1#app-title { color:#111111 !important; text-shadow:none !important; }
-html:root:not(.dark) h2, 
-html:root:not(.dark) h3,
-html:root:not(.dark) .stMarkdown h2,
-html:root:not(.dark) .stMarkdown h3,
-html:root:not(.dark) label,
-html:root:not(.dark) legend,
-html:root:not(.dark) p {
-  color:#111111 !important;
-}
-
-/* 3) Inputs no CLARO: branco + texto preto + borda visível */
-html:root:not(.dark) input,
-html:root:not(.dark) textarea,
-html:root:not(.dark) select,
-html:root:not(.dark) .stTextInput input,
-html:root:not(.dark) .stDateInput input,
-html:root:not(.dark) .stNumberInput input{
-  background:#ffffff !important;
-  color:#111111 !important;
-  border:1px solid rgba(0,0,0,.22) !important;
-}
-html:root:not(.dark) ::placeholder { color: rgba(17,19,24,.55) !important; }
-
-/* 4) Botões SEMPRE laranja com texto preto (inclui forms e desabilitados) */
-html .stButton > button,
-html .stDownloadButton > button,
-html div[data-testid="stForm"] .stButton > button,
-html .stButton > button[kind],
-html button[kind="secondary"] {
-  background: #d75413 !important;
-  color:#111111 !important;
-  border:none !important;
-  border-radius:12px !important;
-  padding:.62rem 1.05rem !important;
-  font-weight:800 !important;
-  box-shadow:0 8px 22px rgba(215,84,19,.25) !important;
-}
-html .stButton > button:disabled,
-html div[data-testid="stForm"] .stButton > button:disabled {
-  background: #ebb08f !important;   /* laranja claro pra parecer desabilitado */
-  color:#222 !important;
-  box-shadow:none !important;
-  opacity:.85 !important;
-}
-
-/* 5) Cartões/Forms no CLARO com fundo branco */
-html:root:not(.dark) div[data-testid="stForm"],
-html:root:not(.dark) .stDataFrame,
-html:root:not(.dark) .element-container:has(> div[data-testid="stDataFrame"]) {
-  background:#ffffff !important;
-  border:1px solid rgba(0,0,0,.12) !important;
-  border-radius:16px !important;
-  box-shadow:0 10px 28px rgba(16,24,40,.10) !important;
-}
-
-/* 6) Métricas em preto no CLARO */
-html:root:not(.dark) .stMetric label,
-html:root:not(.dark) .stMetric div[data-testid="stMetricValue"]{
-  color:#111111 !important;
-}
-
-/* 7) Gráfico Altair legível no CLARO (eixos/labels/grade) */
-html:root:not(.dark) .vega-embed * { color:#111318 !important; }
-</style>
-""", unsafe_allow_html=True)
-st.markdown("""
-<style>
-/* Desce o título e dá respiro no topo do conteúdo */
-[class*="block-container"]{ padding-top: 2.2rem !important; }
-h1#app-title{ margin-top: .6rem !important; margin-bottom: .35rem !important; }
-</style>
-""", unsafe_allow_html=True)
-st.markdown("""
-<style>
-/* Força laranja Habisolute nos botões do app inteiro */
-:root{ --hab-accent:#d75413; --hab-text:#111; }
-
-/* Botões padrão e de form */
-.stButton > button,
-.stDownloadButton > button,
-div[data-testid="stForm"] .stButton > button,
-button[kind],
-button[kind="secondary"],
-button[kind="primary"]{
+/* Botões laranja texto preto (sempre) */
+:root{{ --hab-accent:{ACCENT}; --hab-text:#111; }}
+.stButton>button, .stDownloadButton>button,
+div[data-testid="stForm"] .stButton>button, button[kind] {{
   background: var(--hab-accent) !important;
   color: var(--hab-text) !important;
   border: none !important;
@@ -252,34 +122,56 @@ button[kind="primary"]{
   font-weight: 800 !important;
   letter-spacing: .2px;
   box-shadow: 0 8px 22px rgba(215,84,19,.25) !important;
-  transition: transform .06s ease, filter .18s ease, box-shadow .18s ease;
-}
+}}
+.stButton>button:hover, .stDownloadButton>button:hover,
+div[data-testid="stForm"] .stButton>button:hover{{ filter:brightness(1.03); transform:translateY(-1px); }}
+.stButton>button:disabled,
+div[data-testid="stForm"] .stButton>button:disabled{{
+  background:#f0a77f !important; color:#222 !important; box-shadow:none !important; opacity:.85 !important;
+}}
 
-/* Hover/Active */
-.stButton > button:hover,
-.stDownloadButton > button:hover,
-div[data-testid="stForm"] .stButton > button:hover{ filter:brightness(1.03); transform:translateY(-1px); }
-.stButton > button:active,
-.stDownloadButton > button:active,
-div[data-testid="stForm"] .stButton > button:active{ transform:translateY(0); }
+/* CLARO 100% branco */
+html:root:not(.dark) html,
+html:root:not(.dark) body,
+html:root:not(.dark) .stApp,
+html:root:not(.dark) .stAppViewContainer,
+html:root:not(.dark) .main,
+html:root:not(.dark) section.main,
+html:root:not(.dark) [class*="block-container"]{{ background:#ffffff !important; color:#111 !important; }}
+html:root:not(.dark) input, html:root:not(.dark) textarea, html:root:not(.dark) select{{ background:#ffffff !important; color:#111 !important; border:1px solid rgba(0,0,0,.22) !important; }}
 
-/* Mesmo quando desabilitados, segue laranja (com leve “desativado”) */
-.stButton > button:disabled,
-div[data-testid="stForm"] .stButton > button:disabled{
-  background: #f0a77f !important;  /* laranja mais claro */
-  color: #222 !important;
-  box-shadow: none !important;
-  opacity: .85 !important;
-}
-
-/* Remove estilos escuros “por cima” que escureciam os botões */
-html:root:not(.dark) .stButton > button,
-html:root:not(.dark) .stDownloadButton > button,
-html:root:not(.dark) div[data-testid="stForm"] .stButton > button{
-  filter:none !important;
-}
+/* Subtítulos sempre pretos no claro */
+html:root:not(.dark) h2, 
+html:root:not(.dark) h3,
+html:root:not(.dark) .stMarkdown h2,
+html:root:not(.dark) .stMarkdown h3,
+html:root:not(.dark) label,
+html:root:not(.dark) legend,
+html:root:not(.dark) p {{
+  color:#111111 !important;
+}}
 </style>
 """, unsafe_allow_html=True)
+
+# ===== TÍTULO — PRETO definitivo (inline + !important), sem alterar layout
+st.markdown(
+    """
+    <h1 id="app-title"
+        style="
+          margin:.6rem 0 .35rem 0;
+          color:#111111 !important;
+          -webkit-text-fill-color:#111111 !important;
+          text-shadow:none !important;
+          opacity:1 !important; filter:none !important; mix-blend-mode:normal !important;
+          font-weight:800;
+        ">
+      🏗️ Sistema de Rupturas de Argamassa Habisolute
+    </h1>
+    """,
+    unsafe_allow_html=True
+)
+
+st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
 
 # ===================== Conversões & helpers =====================
 KGF_CM2_TO_MPA    = 0.0980665
@@ -319,7 +211,6 @@ def _hex_to_rgb(hexstr: str):
     return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
 
 def _gen_report_id(dt: date) -> str:
-    # Ex.: 20251023-A453DA
     return f"{dt.strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}"
 
 # ===== Normas (usadas no PDF e exibidas como rodapé do app)
@@ -411,7 +302,8 @@ with st.form("cp_form", clear_on_submit=True):
                 "idade_dias":    max(0, (st.session_state.data_ruptura - st.session_state.data_moldagem).days),
             })
             st.success("CP adicionado.")
-            # ===================== Tabela + Gráfico (tela) =====================
+
+# ===================== Tabela + Gráfico (tela) =====================
 if st.session_state.registros:
     # 1) DataFrame bruto
     df = pd.DataFrame(st.session_state.registros).copy()
@@ -677,14 +569,14 @@ with b3:
         </script>
         """, height=60)
 
-# ======= Diagnóstico (acima das normas)
+# ======= Diagnóstico
 st.caption(
     ("PDF direto ativo ✅" if not MISSING else "PDF direto inativo ❌") +
     (" • Dependência faltando: " + ", ".join(MISSING) if MISSING else "") +
     " • Conversões: [kgf/cm²] → kN/cm² (×0,00980665) e MPa (×0,0980665)."
 )
 
-# ===================== Rodapé do APP (normas + assinatura)
+# ===== Rodapé
 st.markdown("---")
 st.markdown(
     "**Normas de referência (argamassa):**  \n"
@@ -699,4 +591,3 @@ st.markdown(
     "</em></div>",
     unsafe_allow_html=True
 )
-
