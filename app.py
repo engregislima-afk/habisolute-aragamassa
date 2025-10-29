@@ -280,6 +280,31 @@ html:root:not(.dark) div[data-testid="stForm"] .stButton > button{
 }
 </style>
 """, unsafe_allow_html=True)
+st.markdown("""
+<style>
+/* FIX: texto preto em inputs desabilitados (ex.: "Idade de ruptura (dias)") */
+html:root:not(.dark) input:disabled,
+html:root:not(.dark) .stNumberInput input:disabled,
+html:root:not(.dark) .stTextInput input:disabled{
+  color:#111111 !important;
+  -webkit-text-fill-color:#111111 !important; /* Safari/Chrome */
+  opacity:1 !important; /* evita "esbranquiçado" de disabled */
+  background:#ffffff !important;
+  border-color: rgba(0,0,0,.22) !important;
+}
+
+/* No modo escuro, mantém legível */
+html.dark input:disabled,
+html.dark .stNumberInput input:disabled,
+html.dark .stTextInput input:disabled{
+  color:#f5f6f8 !important;
+  -webkit-text-fill-color:#f5f6f8 !important;
+  opacity:1 !important;
+  background:#212327 !important;
+  border-color: rgba(255,255,255,.22) !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ===================== Conversões & helpers =====================
 KGF_CM2_TO_MPA    = 0.0980665
