@@ -518,22 +518,38 @@ if st.session_state.registros:
 
 
     # 6) Gráfico — pontos espaçados mesmo quando o Código CP se repete
-st.subheader("📈Gráfico de ruptura (MPa por CP)")
+st.subheader("📈 Gráfico de ruptura (MPa por CP)")
 
-chart_df = pd.DataFrame({
-    "Código CP": df["codigo_cp"].astype(str).values,
-    "MPa":       df["mpa"].astype(float).values
-}).reset_index(drop=False).rename(columns={"index": "rowid"})
+# ------- salvaguardas de tema/cor -------
+theme_name = st.session_state.get("theme", "Escuro")
+ACCENT = st.session_state.get("accent_color", "#f97316")  # laranja Habisolute (fallback)
 
-bg = "#0f1115" if st.session_state.theme == "Escuro" else "#ffffff"
-axis_color = "#e8eaed" if st.session_state.theme == "Escuro" else "#111318"
-grid_color = "rgba(255,255,255,0.22)" if st.session_state.theme == "Escuro" else "#e5e7eb"
+# ------- dataframe do gráfico -------
+chart_df = (
+    pd.DataFrame({
+        "Código CP": df["codigo_cp"].astype(str).values,
+        "MPa":       pd.to_numeric(df["mpa"], errors="coerce").values
+    })
+    .dropna(subset=["MPa"])
+    .reset_index(drop=False)  # cria coluna 'index' para rowid
+    .rename(columns={"index": "rowid"})
+)
+
+# Cores/estilo por tema (claro/escuro)
+bg         = "#0f1115" if theme_name == "Escuro" else "#ffffff"
+axis_color = "#e8eaed" if theme_name == "Escuro" else "#111318"
+grid_color = "rgba(255,255,255,0.22)" if theme_name == "Escuro" else "#e5e7eb"
+
 y_max = float(chart_df["MPa"].max() * 1.15) if len(chart_df) else 1.0
 
+# ------- gráfico com deslocamento (xOffset) por duplicidade -------
 points = (
     alt.Chart(chart_df, background=bg)
+      # dup_index = 1..N para cada "Código CP"
       .transform_window(dup_index='rank()', groupby=['Código CP'])
+      # total = quantidade de CPs por código
       .transform_joinaggregate(total='count()', groupby=['Código CP'])
+      # offset centralizado: espaçamento de 10 px entre pontos do mesmo código
       .transform_calculate(offset='(datum.dup_index - (datum.total + 1)/2) * 10')
       .mark_point(size=110, filled=True, color=ACCENT, opacity=0.95)
       .encode(
@@ -544,10 +560,15 @@ points = (
           tooltip=[alt.Tooltip('Código CP:N', title='Código CP'),
                    alt.Tooltip('MPa:Q', format='.3f')]
       )
-      .properties(height=360, padding={"left":10,"right":10,"top":10,"bottom":10},
-                  title='Gráfico de ruptura (MPa por CP)')
-      .configure_axis(labelColor=axis_color, titleColor=axis_color,
-                      gridColor=grid_color, domainColor=axis_color)
+      .properties(
+          height=360,
+          padding={"left": 10, "right": 10, "top": 10, "bottom": 10},
+          title='Gráfico de ruptura (MPa por CP)'
+      )
+      .configure_axis(
+          labelColor=axis_color, titleColor=axis_color,
+          gridColor=grid_color, domainColor=axis_color
+      )
       .configure_title(color=axis_color)
       .configure_view(stroke='transparent')
 )
