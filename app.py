@@ -116,11 +116,11 @@ def header() -> None:
     )
     c1, c2, c3, c4 = st.columns([1.2,1,1,2])
     with c1:
-        st.session_state.theme = st.selectbox("Tema", ["Escuro", "Claro"], index=0 if theme_name=="Escuro" else 1)
+        st.session_state.theme = st.selectbox("Tema", ["Escuro", "Claro"], index=0 if theme_name=="Escuro" else 1, key="theme_sel")
     with c2:
-        st.session_state.accent_color = st.text_input("Cor de destaque (hex)", value=accent)
+        st.session_state.accent_color = st.text_input("Cor de destaque (hex)", value=accent, key="accent_sel")
     with c3:
-        st.session_state.wide_layout = st.toggle("Tela larga (1800px)", value=bool(st.session_state.get("wide_layout", True)))
+        st.session_state.wide_layout = st.toggle("Tela larga (1800px)", value=bool(st.session_state.get("wide_layout", True)), key="wide_toggle")
     with c4:
         st.markdown("&nbsp;")
 
@@ -129,13 +129,13 @@ def bloco_converter() -> None:
     st.subheader("🔁 Conversor rápido (kgf ➜ kgf/cm² ➜ MPa)")
     c1, c2, c3 = st.columns(3)
     with c1:
-        carga = st.number_input("Carga (kgf)", min_value=0.0, value=0.0, step=10.0)
+        carga = st.number_input("Carga (kgf)", min_value=0.0, value=0.0, step=10.0, key="conv_carga_kgf")
     with c2:
-        area = st.number_input("Área do CP (cm²)", min_value=0.01, value=float(st.session_state.obra["area_cm2"]), step=0.01, format="%.2f")
+        area = st.number_input("Área do CP (cm²)", min_value=0.01, value=float(st.session_state.obra["area_cm2"]), step=0.01, format="%.2f", key="conv_area_cm2")
     with c3:
         st.write("")
         st.write("")
-        if st.button("Calcular", use_container_width=True):
+        if st.button("Calcular", use_container_width=True, key="conv_btn"):
             pass  # botão apenas para UX
     res = calc_from_kgf(carga, area)
     c4, c5 = st.columns(2)
@@ -152,30 +152,30 @@ def bloco_dados_obra() -> None:
     o = s.obra
     c1, c2, c3 = st.columns([2,1,1])
     with c1:
-        o["nome_obra"] = st.text_input("Nome da obra", value=o.get("nome_obra", ""))
+        o["nome_obra"] = st.text_input("Nome da obra", value=o.get("nome_obra", ""), key="obra_nome")
     with c2:
-        o["data"] = st.date_input("Data", value=o.get("data", date.today()))
+        o["data"] = st.date_input("Data", value=o.get("data", date.today()), key="obra_data")
     with c3:
-        o["area_cm2"] = st.number_input("Área do CP (cm²)", min_value=0.01, value=float(o.get("area_cm2", 16.00)), step=0.01, format="%.2f")
+        o["area_cm2"] = st.number_input("Área do CP (cm²)", min_value=0.01, value=float(o.get("area_cm2", 16.00)), step=0.01, format="%.2f", key="obra_area_cm2")
 
     c4, c5, c6 = st.columns([1,1,1])
     with c4:
-        o["data_moldagem"] = st.date_input("Data de moldagem", value=o.get("data_moldagem", date.today()))
+        o["data_moldagem"] = st.date_input("Data de moldagem", value=o.get("data_moldagem", date.today()), key="obra_mold")
     with c5:
-        o["data_ruptura"] = st.date_input("Data de ruptura", value=o.get("data_ruptura", date.today()))
+        o["data_ruptura"] = st.date_input("Data de ruptura", value=o.get("data_ruptura", date.today()), key="obra_rupt")
     with c6:
-        o["idade_dias"] = st.number_input("Idade de ruptura (dias)", min_value=1, value=int(o.get("idade_dias", 28)), step=1)
+        o["idade_dias"] = st.number_input("Idade de ruptura (dias)", min_value=1, value=int(o.get("idade_dias", 28)), step=1, key="obra_idade")
 
     st.session_state.obra = o
 
     c7, c8, _ = st.columns([1,2,4])
     with c7:
         st.markdown('<div class="hab-btn">', unsafe_allow_html=True)
-        st.button("Aplicar", use_container_width=True)
+        st.button("Aplicar", use_container_width=True, key="obra_aplicar")
         st.markdown('</div>', unsafe_allow_html=True)
     with c8:
         st.markdown('<div class="hab-btn">', unsafe_allow_html=True)
-        if st.button("Recalcular lote com nova área", use_container_width=True):
+        if st.button("Recalcular lote com nova área", use_container_width=True, key="obra_recalc_area"):
             recalc_lote_area(float(o["area_cm2"]))
         st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -193,13 +193,13 @@ def bloco_lancar_cp() -> None:
     o = s.obra
     c1, c2, c3 = st.columns([2,1,1])
     with c1:
-        codigo = st.text_input("Código do CP", placeholder="Ex.: A039.258 / H682 / 037.421")
+        codigo = st.text_input("Código do CP", placeholder="Ex.: A039.258 / H682 / 037.421", key="cp_codigo")
     with c2:
-        carga_kgf = st.number_input("Carga de ruptura (kgf)", min_value=0.0, step=1.0, value=0.0)
+        carga_kgf = st.number_input("Carga de ruptura (kgf)", min_value=0.0, step=1.0, value=0.0, key="cp_carga")
     with c3:
         st.write("")
         st.markdown('<div class="hab-btn">', unsafe_allow_html=True)
-        add = st.button("Aplicar CP", use_container_width=True)
+        add = st.button("Aplicar CP", use_container_width=True, key="cp_aplicar")
         st.markdown('</div>', unsafe_allow_html=True)
 
     if add and codigo.strip():
@@ -221,7 +221,7 @@ def bloco_tabela() -> None:
     c1, c2, c3 = st.columns([1,1,6])
     with c1:
         if not df.empty:
-            st.download_button("Baixar CSV", df.to_csv(index=False).encode("utf-8"), "lote.csv", "text/csv")
+            st.download_button("Baixar CSV", df.to_csv(index=False).encode("utf-8"), "lote.csv", "text/csv", key="dl_csv")
     with c2:
         if not df.empty:
             # Excel
@@ -229,7 +229,7 @@ def bloco_tabela() -> None:
             buf = BytesIO()
             with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
                 df.to_excel(writer, index=False, sheet_name="Lote")
-            st.download_button("Baixar Excel", buf.getvalue(), "lote.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            st.download_button("Baixar Excel", buf.getvalue(), "lote.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_xlsx")
     st.markdown('</div>', unsafe_allow_html=True)
 
 def bloco_grafico() -> None:
