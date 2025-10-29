@@ -140,6 +140,91 @@ st.markdown(
     unsafe_allow_html=True
 )
 st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
+# === HOTFIX FINAL (coloque no FIM do arquivo) ===
+st.markdown("""
+<style>
+/* 0) Força precedência deste bloco */
+:root { --_fix_20251029: 1; }
+
+/* 1) MODO CLARO totalmente branco */
+html:root:not(.dark) html,
+html:root:not(.dark) body,
+html:root:not(.dark) .stApp,
+html:root:not(.dark) .stAppViewContainer,
+html:root:not(.dark) .main,
+html:root:not(.dark) section.main,
+html:root:not(.dark) [class*="block-container"]{
+  background: #ffffff !important;
+  color: #111111 !important;
+}
+
+/* 2) Título e subtítulos sempre em preto no CLARO */
+html:root:not(.dark) h1#app-title { color:#111111 !important; text-shadow:none !important; }
+html:root:not(.dark) h2, 
+html:root:not(.dark) h3,
+html:root:not(.dark) .stMarkdown h2,
+html:root:not(.dark) .stMarkdown h3,
+html:root:not(.dark) label,
+html:root:not(.dark) legend,
+html:root:not(.dark) p {
+  color:#111111 !important;
+}
+
+/* 3) Inputs no CLARO: branco + texto preto + borda visível */
+html:root:not(.dark) input,
+html:root:not(.dark) textarea,
+html:root:not(.dark) select,
+html:root:not(.dark) .stTextInput input,
+html:root:not(.dark) .stDateInput input,
+html:root:not(.dark) .stNumberInput input{
+  background:#ffffff !important;
+  color:#111111 !important;
+  border:1px solid rgba(0,0,0,.22) !important;
+}
+html:root:not(.dark) ::placeholder { color: rgba(17,19,24,.55) !important; }
+
+/* 4) Botões SEMPRE laranja com texto preto (inclui forms e desabilitados) */
+html .stButton > button,
+html .stDownloadButton > button,
+html div[data-testid="stForm"] .stButton > button,
+html .stButton > button[kind],
+html button[kind="secondary"] {
+  background: #d75413 !important;
+  color:#111111 !important;
+  border:none !important;
+  border-radius:12px !important;
+  padding:.62rem 1.05rem !important;
+  font-weight:800 !important;
+  box-shadow:0 8px 22px rgba(215,84,19,.25) !important;
+}
+html .stButton > button:disabled,
+html div[data-testid="stForm"] .stButton > button:disabled {
+  background: #ebb08f !important;   /* laranja claro pra parecer desabilitado */
+  color:#222 !important;
+  box-shadow:none !important;
+  opacity:.85 !important;
+}
+
+/* 5) Cartões/Forms no CLARO com fundo branco */
+html:root:not(.dark) div[data-testid="stForm"],
+html:root:not(.dark) .stDataFrame,
+html:root:not(.dark) .element-container:has(> div[data-testid="stDataFrame"]) {
+  background:#ffffff !important;
+  border:1px solid rgba(0,0,0,.12) !important;
+  border-radius:16px !important;
+  box-shadow:0 10px 28px rgba(16,24,40,.10) !important;
+}
+
+/* 6) Métricas em preto no CLARO */
+html:root:not(.dark) .stMetric label,
+html:root:not(.dark) .stMetric div[data-testid="stMetricValue"]{
+  color:#111111 !important;
+}
+
+/* 7) Gráfico Altair legível no CLARO (eixos/labels/grade) */
+html:root:not(.dark) .vega-embed * { color:#111318 !important; }
+</style>
+""", unsafe_allow_html=True)
 
 # ===================== Conversões & helpers =====================
 KGF_CM2_TO_MPA    = 0.0980665
