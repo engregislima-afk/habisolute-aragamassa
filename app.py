@@ -225,6 +225,61 @@ html:root:not(.dark) .stMetric div[data-testid="stMetricValue"]{
 html:root:not(.dark) .vega-embed * { color:#111318 !important; }
 </style>
 """, unsafe_allow_html=True)
+st.markdown("""
+<style>
+/* Desce o título e dá respiro no topo do conteúdo */
+[class*="block-container"]{ padding-top: 2.2rem !important; }
+h1#app-title{ margin-top: .6rem !important; margin-bottom: .35rem !important; }
+</style>
+""", unsafe_allow_html=True)
+st.markdown("""
+<style>
+/* Força laranja Habisolute nos botões do app inteiro */
+:root{ --hab-accent:#d75413; --hab-text:#111; }
+
+/* Botões padrão e de form */
+.stButton > button,
+.stDownloadButton > button,
+div[data-testid="stForm"] .stButton > button,
+button[kind],
+button[kind="secondary"],
+button[kind="primary"]{
+  background: var(--hab-accent) !important;
+  color: var(--hab-text) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: .62rem 1.05rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .2px;
+  box-shadow: 0 8px 22px rgba(215,84,19,.25) !important;
+  transition: transform .06s ease, filter .18s ease, box-shadow .18s ease;
+}
+
+/* Hover/Active */
+.stButton > button:hover,
+.stDownloadButton > button:hover,
+div[data-testid="stForm"] .stButton > button:hover{ filter:brightness(1.03); transform:translateY(-1px); }
+.stButton > button:active,
+.stDownloadButton > button:active,
+div[data-testid="stForm"] .stButton > button:active{ transform:translateY(0); }
+
+/* Mesmo quando desabilitados, segue laranja (com leve “desativado”) */
+.stButton > button:disabled,
+div[data-testid="stForm"] .stButton > button:disabled{
+  background: #f0a77f !important;  /* laranja mais claro */
+  color: #222 !important;
+  box-shadow: none !important;
+  opacity: .85 !important;
+}
+
+/* Remove estilos escuros “por cima” que escureciam os botões */
+html:root:not(.dark) .stButton > button,
+html:root:not(.dark) .stDownloadButton > button,
+html:root:not(.dark) div[data-testid="stForm"] .stButton > button{
+  filter:none !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ===================== Conversões & helpers =====================
 KGF_CM2_TO_MPA    = 0.0980665
