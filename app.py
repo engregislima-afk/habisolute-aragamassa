@@ -543,17 +543,14 @@ y_max = float(chart_df["MPa"].max() * 1.15) if len(chart_df) else 1.0
 
 points = (
     alt.Chart(chart_df, background=bg)
-      # índice do ponto dentro de cada grupo (mesmo Código CP)
       .transform_window(dup_index='rank()', groupby=['Código CP'])
-      # tamanho do grupo (quantos pontos tem o mesmo Código CP)
       .transform_joinaggregate(total='count()', groupby=['Código CP'])
-      # deslocamento (px) para espaçar: centraliza e dá gap entre os pontos
-      .transform_calculate(offset='(datum.dup_index - (datum.total + 1)/2) * 10')  # ajuste 10→ mais/menos espaço
+      .transform_calculate(offset='(datum.dup_index - (datum.total + 1)/2) * 10')
       .mark_point(size=110, filled=True, color=ACCENT, opacity=0.95)
       .encode(
           x=alt.X('Código CP:N', title='Código do CP', sort=None,
                   axis=alt.Axis(labelAngle=0)),
-          xOffset='offset:Q',  # << chave do espaçamento
+          xOffset='offset:Q',
           y=alt.Y('MPa:Q', scale=alt.Scale(domain=[0, y_max]), title='MPa'),
           tooltip=[alt.Tooltip('Código CP:N', title='Código CP'),
                    alt.Tooltip('MPa:Q', format='.3f')]
@@ -567,7 +564,7 @@ points = (
 )
 
 st.altair_chart(points, use_container_width=True)
-    st.divider()
+st.divider()
 else:
     st.info("Nenhum CP lançado ainda. Adicione registros para visualizar tabela e gráfico.")
 
