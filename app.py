@@ -150,6 +150,25 @@ html:root:not(.dark) legend,
 html:root:not(.dark) p {{
   color:#111111 !important;
 }}
+
+/* ========== Disabled inputs always legible ========== */
+/* Claro: preto nos inputs desabilitados */
+html:root:not(.dark) .stNumberInput input:disabled,
+html:root:not(.dark) .stTextInput input:disabled,
+html:root:not(.dark) input[disabled]{
+  color:#111111 !important;
+  -webkit-text-fill-color:#111111 !important;
+  opacity:1 !important;
+}
+/* Escuro: texto claro */
+html.dark .stNumberInput input:disabled,
+html.dark .stTextInput input:disabled,
+html.dark input[disabled]{
+  color:#f5f6f8 !important;
+  -webkit-text-fill-color:#f5f6f8 !important;
+  opacity:1 !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
