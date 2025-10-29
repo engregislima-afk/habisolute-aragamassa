@@ -139,6 +139,23 @@ st.markdown(
     "<h1 id='app-title' style='margin:0'>🏗️Sistema de Rupturas de Argamassa Habisolute</h1>",
     unsafe_allow_html=True
 )
+# Força o título 100% PRETO em qualquer tema/estilo
+st.markdown("""
+<style>
+/* alta especificidade + !important + fill-color para WebKit */
+html body h1#app-title,
+div[data-testid="stMarkdownContainer"] h1#app-title,
+section main h1#app-title {
+  color:#111111 !important;
+  -webkit-text-fill-color:#111111 !important;
+  text-shadow:none !important;
+  opacity:1 !important;
+  filter:none !important;
+}
+/* evita que estilos herdados clareiem o texto */
+h1#app-title * { color:#111111 !important; -webkit-text-fill-color:#111111 !important; }
+</style>
+""", unsafe_allow_html=True)
 st.caption("Entrada: **carga (kgf)**. Saídas: **kN/cm²** e **MPa**. PDF direto em 1 clique (somente fpdf2).")
 # === HOTFIX FINAL (coloque no FIM do arquivo) ===
 st.markdown("""
