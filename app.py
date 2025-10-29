@@ -322,6 +322,35 @@ html.dark .stTextInput input:disabled{
 }
 </style>
 """, unsafe_allow_html=True)
+st.markdown("""
+<style>
+/* Força o título a ficar preto em QUALQUER tema/estilo */
+:root{ --fix-title-20251029: 1; }
+
+h1#app-title,
+h1#app-title *{
+  color:#111111 !important;
+  -webkit-text-fill-color:#111111 !important;  /* Chrome/Safari */
+  text-shadow:none !important;
+  opacity:1 !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+}
+
+/* Garante em contêineres do Streamlit */
+.stMarkdown h1#app-title,
+[data-testid="stMarkdownContainer"] h1#app-title{
+  color:#111111 !important;
+  opacity:1 !important;
+}
+
+/* No modo claro, reforça ainda mais */
+html:root:not(.dark) h1#app-title,
+html:root:not(.dark) .stMarkdown h1#app-title{
+  color:#111111 !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ===================== Conversões & helpers =====================
 KGF_CM2_TO_MPA    = 0.0980665
