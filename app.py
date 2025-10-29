@@ -24,7 +24,7 @@ except Exception:
 ACCENT = "#d75413"  # laranja Habisolute
 
 # WIDESCREEN
-st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🏗️", layout="wide")
+st.set_page_config(page_title="Rupturas de Argamassa", page_icon="🧪", layout="wide")
 
 if "theme" not in st.session_state: st.session_state.theme = "Claro"  # começa no claro
 if "obra" not in st.session_state: st.session_state.obra = ""
@@ -432,7 +432,7 @@ h1#app-title{ display:none !important; }
 </style>
 
 <div class="hab-title">
-  <span class="emoji">🏗️</span>
+  <span class="emoji">🧪</span>
   <span>Sistema de Rupturas de Argamassa Habisolute</span>
 </div>
 """, unsafe_allow_html=True)
@@ -728,7 +728,7 @@ def build_pdf(obra: str, data_obra: date, area_cm2: float, df: pd.DataFrame) -> 
     pdf.add_page()
 
     pdf.set_font("Arial", "B", 15)
-    pdf.cell(0, 8, _latin1_safe("🏗️Rupturas de Argamassa  Lote"), ln=1, align="C")
+    pdf.cell(0, 8, _latin1_safe("🧪Rupturas de Argamassa  Lote"), ln=1, align="C")
     pdf.set_font("Arial", size=11)
     info = f"Obra: {obra}   |   Data: {data_obra.strftime('%d/%m/%Y')}   |   Área do CP: {area_cm2:.2f} cm²"
     pdf.cell(0, 6, _latin1_safe(info), ln=1, align="C")
